@@ -94,6 +94,9 @@ COLUMN_EXTRACTORS.update(_ladder_extractors(LADDER_DEPTH))
 # Every column above, in order. This is what build_dataset.py writes.
 ALL_COLUMNS = list(COLUMN_EXTRACTORS)
 
+# Columns converted from GBP to AUD (rounded to cents).
+_SIZE_COLUMNS = [c for c in ALL_COLUMNS if c in ("total_matched", "total_runner_matched") or "_size_" in c]
+
 DEFAULT_COLUMNS = [
     "publish_time",
     "market_type",
@@ -156,6 +159,8 @@ class BetfairStreamLoader:
         market_type_filter: Optional[Iterable[str]] = None,
     ) -> None:
         self.extractors = {**COLUMN_EXTRACTORS, **(extra_columns or {})}
+        # The fast row builder only knows the built-in columns.
+        self._use_fast_path = not extra_columns
 
         columns = list(columns)
         unknown = set(columns) - set(self.extractors)
@@ -198,7 +203,8 @@ class BetfairStreamLoader:
     # Streaming
     # ---------------------------------------------------------------------------
 
-    def _iter_rows(self, bz2_path: str | Path):
+    def _iter_runner_books(self, bz2_path: str | Path):
+        """Yield (market_book, runner, runner_def) for every runner on every logged update."""
         # Historical files need no login, but the client still requires an app key, so pass a dummy one.
         trading = betfairlightweight.APIClient("username", "password", app_key="historical")
         listener = StreamListener(
@@ -242,10 +248,60 @@ class BetfairStreamLoader:
                         for runner in market_book.runners:
                             if self.selection_ids and runner.selection_id not in self.selection_ids:
                                 continue
-                            runner_def = runners_dict.get(runner.selection_id)
-                            yield self._extract_row(market_book, runner, runner_def)
+                            yield market_book, runner, runners_dict.get(runner.selection_id)
             finally:
                 os.remove(decompressed_path)
+
+    def _iter_rows(self, bz2_path: str | Path):
+        """Rows as dicts, built column by column from the extractors (supports extra_columns)."""
+        for market_book, runner, runner_def in self._iter_runner_books(bz2_path):
+            yield self._extract_row(market_book, runner, runner_def)
+
+    def _iter_fast_rows(self, bz2_path: str | Path):
+        """Rows as tuples in ALL_COLUMNS order. Same values as _iter_rows, but much faster:
+        market-level fields and times are worked out once per update instead of once per
+        cell, and sizes are left unrounded (load() rounds them all at once)."""
+        last_book = None
+        for mb, r, rd in self._iter_runner_books(bz2_path):
+            if mb is not last_book:
+                last_book = mb
+                md = mb.market_definition
+                rate = _gbp_aud_rate(mb.publish_time.date())
+                total_matched = mb.total_matched * rate if mb.total_matched is not None else None
+                head = (
+                    mb.publish_time_epoch,
+                    mb.market_id,
+                    md.event_id,
+                    md.market_time,
+                    md.market_type,
+                    md.name,
+                    md.venue,
+                    mb.status,
+                    mb.inplay,
+                )
+
+            ladder = []
+            backs, lays = r.ex.available_to_back, r.ex.available_to_lay
+            for i in range(LADDER_DEPTH):
+                if len(backs) > i:
+                    ladder += (backs[i].price, backs[i].size * rate)
+                else:
+                    ladder += (None, None)
+                if len(lays) > i:
+                    ladder += (lays[i].price, lays[i].size * rate)
+                else:
+                    ladder += (None, None)
+
+            yield head + (
+                r.selection_id,
+                rd.name if rd else None,
+                r.last_price_traded,
+                total_matched,
+                r.total_matched * rate if r.total_matched is not None else None,
+                rd.adjustment_factor if rd else None,
+                rd.status if rd else r.status,
+                *ladder,
+            )
 
     # ---------------------------------------------------------------------------
     # Public API 
@@ -253,8 +309,14 @@ class BetfairStreamLoader:
 
     def load(self, bz2_path: str | Path) -> pd.DataFrame:
         """Load a single .bz2 market-stream file into a DataFrame."""
-        rows = list(self._iter_rows(bz2_path))
-        return pd.DataFrame(rows, columns=self.columns)
+        if not self._use_fast_path:
+            return pd.DataFrame(list(self._iter_rows(bz2_path)), columns=self.columns)
+
+        df = pd.DataFrame(list(self._iter_fast_rows(bz2_path)), columns=ALL_COLUMNS)
+        df["publish_time"] = pd.to_datetime(df["publish_time"], unit="ms", utc=True)
+        df["market_time"] = pd.to_datetime(df["market_time"], utc=True)
+        df[_SIZE_COLUMNS] = df[_SIZE_COLUMNS].round(2)
+        return df[self.columns]
 
     def load_to_csv(self, bz2_path: str | Path, out_path: str | Path) -> None:
         """Stream a .bz2 market-stream file straight to CSV without holding it all in memory."""
@@ -290,12 +352,26 @@ def race_key(event_id, market_time) -> str:
     return f"{event_id}_{pd.Timestamp(market_time).strftime('%Y-%m-%dT%H:%M:%S')}"
 
 
-def load_stream(csv_path: str | Path) -> pd.DataFrame:
-    """Read a per-market CSV written by build_dataset.py back into a DataFrame."""
+def load_stream(path: str | Path) -> pd.DataFrame:
+    """Read a per-market file written by build_dataset.py (.parquet, or an older .csv)."""
+    path = Path(path)
+    if path.suffix == ".parquet":
+        return pd.read_parquet(path)
+
     df = pd.read_csv(
-        csv_path,
+        path,
         dtype={"market_id": str, "event_id": str, "selection_id": "int64"},
     )
     df["publish_time"] = pd.to_datetime(df["publish_time"], format="ISO8601")
     df["market_time"] = pd.to_datetime(df["market_time"], format="ISO8601")
     return df
+
+
+def read_market_type(path: str | Path) -> str | None:
+    """Market type (WIN / PLACE / MATCH_BET) of a per-market file, without loading all of it."""
+    path = Path(path)
+    if path.suffix == ".parquet":
+        col = pd.read_parquet(path, columns=["market_type"])["market_type"]
+    else:
+        col = pd.read_csv(path, usecols=["market_type"], nrows=1)["market_type"]
+    return None if col.empty else str(col.iloc[0])

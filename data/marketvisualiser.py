@@ -2,13 +2,13 @@
 data/marketvisualiser.py
 ------------------------
 
-Step through a Betfair market-stream CSV (as produced by streamloaders.py) tick by tick.
+Step through a Betfair market-stream file (.parquet or .csv, as produced by build_dataset.py) tick by tick.
 
 Usage:
-    `python marketvisualiser.py path/to/market.csv [--max-columns 3]`
+    `python marketvisualiser.py path/to/market.parquet [--max-columns 3]`
 
 ## Notes:
-    - `publish_time` in the market CSV must be in chronological (non-decreasing) order
+    - `publish_time` in the market file must be in chronological (non-decreasing) order
 """
 from __future__ import annotations
 
@@ -76,8 +76,8 @@ def detect_max_depth(columns, max_columns: int = MAX_DEPTH) -> int:
 
 
 def load_ticks(csv_path: str, max_columns: int = MAX_DEPTH) -> tuple[list[pd.DataFrame], list[pd.Timestamp], int]:
-    """Loads a CSV and returns lists of each tick and important values."""
-    df = pd.read_csv(csv_path)
+    """Loads a market file and returns lists of each tick and important values."""
+    df = read_market_file(csv_path)
     df["publish_time"] = pd.to_datetime(df["publish_time"], utc=True, format="ISO8601")
     if "market_time" in df.columns:
         df["market_time"] = pd.to_datetime(df["market_time"], utc=True, format="ISO8601")
@@ -345,8 +345,13 @@ NECESSARY_COLUMNS = [
     "lay_size_1",
 ]
 
+def read_market_file(path: str) -> pd.DataFrame:
+    """Read a per-market .parquet or .csv file."""
+    return pd.read_parquet(path) if path.endswith(".parquet") else pd.read_csv(path)
+
+
 def validate_csv(csv_path: str) -> list[str]:
-    df = pd.read_csv(csv_path)
+    df = read_market_file(csv_path)
     cols_not_in = []
     for col in NECESSARY_COLUMNS:
         if col not in df.columns:
@@ -355,7 +360,7 @@ def validate_csv(csv_path: str) -> list[str]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("csv_path", help="Path to a market CSV file")
+    parser.add_argument("csv_path", help="Path to a market .parquet or .csv file")
     parser.add_argument(
         "--max-columns",
         type=int,
@@ -366,7 +371,7 @@ def main() -> None:
     args = parser.parse_args()
 
     if (cols_not_in := validate_csv(args.csv_path)):
-        print(f"Columns not found in CSV: {cols_not_in}")
+        print(f"Columns not found in file: {cols_not_in}")
 
     ticks, tick_times, max_depth = load_ticks(args.csv_path, args.max_columns)
     if not ticks:

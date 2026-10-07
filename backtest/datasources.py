@@ -13,7 +13,7 @@ import glob
 import re
 
 from backtest.context import MarketContext, MarketStatus, MarketType, RaceResult, RunnerState
-from data.streamloaders import load_stream, race_key
+from data.streamloaders import load_stream, race_key, read_market_type
 
 def _ladder_columns(df: pd.DataFrame, side: str) -> list[tuple[str, str]]:
     """(price_col, size_col) for each ladder level in the CSV: back_price_1, back_price_2, ..."""
@@ -56,7 +56,7 @@ class MarketSource(ABC):
 
 class StreamMarketSource(MarketSource):
     """
-    Wraps per-market CSVs produced by BetfairStreamLoader.load_glob_to_csv().
+    Wraps the per-market .parquet files written by scripts/build_dataset.py.
 
     Yields one MarketContext per tick/conflation window per race.
     """
@@ -74,8 +74,7 @@ class StreamMarketSource(MarketSource):
     def markets(self) -> Iterator[MarketReplay]:
         for f in sorted(glob.glob(self.pattern)):
             if self.market_type_filter is not None:
-                head = pd.read_csv(f, usecols=["market_type"], nrows=1)
-                if head.empty or head["market_type"].iloc[0] not in self.market_type_filter:
+                if read_market_type(f) not in self.market_type_filter:
                     continue
             df = load_stream(f)
             replay = self._build_replay(df)

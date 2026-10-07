@@ -31,7 +31,7 @@ def main() -> None:
         race_no_lookup = json.load(f)
 
     source = StreamMarketSource(
-        pattern=str(PROCESSED / "*/*/*/*.csv"),   # e.g. "Oct/1/*/*.csv" for a single day
+        pattern=str(PROCESSED / "*/*/*/*.parquet"),   # e.g. "Oct/1/*/*.parquet" for a single day
         race_no_lookup=race_no_lookup,
         market_type_filter={MarketType.WIN},      # WIN, PLACE and/or MATCH_BET
     )
