@@ -16,17 +16,19 @@ This writes one CSV per market to `data/processed/market_stream/...` and `race_n
 
 ## Backtesting Engine
 
-Limitations and things that need to be implemented:
+Limitations and things that need to be implemented, none of these are a limitation of the data itself, we can implement them quickly:
 
 1. The current engine is taker-only (reactive, fill-or-kill); proactive strategies can't be simulated right now. 
 
-2. Strategies can't track inventory yet (not implemented).
+2. A Strategy cannot read from multiple markets simultaenously (not implemented)
 
-3. The CSVs maintain 3 levels (from `streamloaders.py`), but `datasources.py` only passes the best BACK and LAY prices to the Strategy.
+3. Strategies can't track inventory yet (not implemented).
 
-4. Traded volume per price not passed to Strategy (the Strategy only knows about the general traded volume and last traded price)
+4. The CSVs maintain 3 levels (from `streamloaders.py`), but `datasources.py` only passes the best BACK and LAY prices to the Strategy.
 
-5. Engine assumes zero latency.
+5. Traded volume per price not passed to Strategy (the Strategy only knows about the general traded volume and last traded price)
+
+6. Engine assumes zero latency.
 
 
 ## Other stuff
