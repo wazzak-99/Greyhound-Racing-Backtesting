@@ -24,7 +24,8 @@ Limitations and things that need to be implemented, none of these are a limitati
 
 3. Strategies can't track inventory yet (not implemented).
 
-4. The CSVs maintain 3 levels (from `streamloaders.py`), but `datasources.py` only passes the best BACK and LAY prices to the Strategy.
+4. The CSVs can maintain multiple depth levels (from `streamloaders.py`). `datasources.py` now passes this to Strategy, but the execution model
+still matches every order against the best level only.
 
 5. Traded volume per price not passed to Strategy (the Strategy only knows about the general traded volume and last traded price)
 

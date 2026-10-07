@@ -13,6 +13,7 @@ import csv
 import glob
 import os
 import tempfile
+from functools import lru_cache
 from pathlib import Path
 from typing import Callable, Iterable, Optional
 
@@ -32,10 +33,21 @@ ColumnExtractor = Callable[[MarketBook, RunnerBook, Optional[MarketDefinitionRun
 # All stream files are in GBP, we use publish time as the date for conversion.
 _CURRENCY_CONVERTER = CurrencyConverter(fallback_on_wrong_date=True, fallback_on_missing_rate=True)
 
+@lru_cache(maxsize=None)
+def _gbp_aud_rate(day) -> float:
+    """Caches and gets GBP -> AUD rate for one day."""
+    return _CURRENCY_CONVERTER.convert(1.0, "GBP", "AUD", date=day)
+
+
 def _gbp_to_aud(amount: Optional[float], market_book: MarketBook) -> Optional[float]:
     if amount is None:
         return None
-    return round(_CURRENCY_CONVERTER.convert(amount, "GBP", "AUD", date=market_book.publish_time.date()), 2)
+    return round(amount * _gbp_aud_rate(market_book.publish_time.date()), 2)
+
+
+def _level(ladder, i: int):
+    """The i-th best level (0 = best) of a ladder, or None if it isn't that deep."""
+    return ladder[i] if len(ladder) > i else None
 
 
 COLUMN_EXTRACTORS: dict[str, ColumnExtractor] = {
@@ -62,7 +74,32 @@ COLUMN_EXTRACTORS: dict[str, ColumnExtractor] = {
         r.ex.available_to_lay[0].size if r.ex.available_to_lay else None, mb
     ),
     "adjustment_factor": lambda mb, r, rd: rd.adjustment_factor if rd else None,
+    # ACTIVE / REMOVED / WINNER / LOSER (the backtester uses this to find the winner)
+    "runner_status": lambda mb, r, rd: rd.status if rd else r.status,
 }
+
+# Deeper ladder levels: back_price_2, back_size_2, lay_price_2, ... up to LADDER_DEPTH.
+LADDER_DEPTH = 3
+
+
+def _ladder_extractors(depth: int) -> dict[str, ColumnExtractor]:
+    out: dict[str, ColumnExtractor] = {}
+    for level in range(2, depth + 1):
+        i = level - 1
+        for side, attr in (("back", "available_to_back"), ("lay", "available_to_lay")):
+            out[f"{side}_price_{level}"] = (
+                lambda mb, r, rd, a=attr, i=i: lvl.price if (lvl := _level(getattr(r.ex, a), i)) else None
+            )
+            out[f"{side}_size_{level}"] = (
+                lambda mb, r, rd, a=attr, i=i: _gbp_to_aud(lvl.size, mb) if (lvl := _level(getattr(r.ex, a), i)) else None
+            )
+    return out
+
+
+COLUMN_EXTRACTORS.update(_ladder_extractors(LADDER_DEPTH))
+
+# Every column above, in order. This is what build_dataset.py writes.
+ALL_COLUMNS = list(COLUMN_EXTRACTORS)
 
 DEFAULT_COLUMNS = [
     "publish_time",
@@ -103,6 +140,9 @@ class BetfairStreamLoader:
             selection_ids only. Defaults to None (all runners).
         extra_columns (dict[str, ColumnExtractor] | None, optional): Extra/override \
             column extractors, merged over `COLUMN_EXTRACTORS`.
+        market_type_filter (Iterable[str] | None, optional): Only load markets of \
+            these types, e.g. `["WIN", "PLACE"]`. Other files return an empty \
+            DataFrame and are abandoned early. Defaults to None (all types).
 
     Example:
         >>> loader = BetfairStreamLoader(
@@ -120,10 +160,10 @@ class BetfairStreamLoader:
         status_filter: Optional[Iterable[str]] = None,
         selection_ids: Optional[Iterable[int]] = None,
         extra_columns: Optional[dict[str, ColumnExtractor]] = None,
+        market_type_filter: Optional[Iterable[str]] = None,
     ) -> None:
         self.extractors = {**COLUMN_EXTRACTORS, **(extra_columns or {})}
 
-        # Checks that the columns requested all exist as built-in extractors
         columns = list(columns)
         unknown = set(columns) - set(self.extractors)
         if unknown:
@@ -135,6 +175,7 @@ class BetfairStreamLoader:
         self.conflate_seconds = conflate_seconds
         self.status_filter = set(status_filter) if status_filter else None
         self.selection_ids = set(selection_ids) if selection_ids else None
+        self.market_type_filter = set(market_type_filter) if market_type_filter else None
 
     # ---------------------------------------------------------------------------
     # Filtering
@@ -165,7 +206,7 @@ class BetfairStreamLoader:
     # ---------------------------------------------------------------------------
 
     def _iter_rows(self, bz2_path: str | Path):
-        trading = betfairlightweight.APIClient("username", "password")
+        trading = betfairlightweight.APIClient("username", "password", app_key="historical")
         listener = StreamListener(
             max_latency=None,
             cumulative_runner_tv=True,
@@ -188,6 +229,13 @@ class BetfairStreamLoader:
 
                 for market_books in gen():
                     for market_book in market_books:
+                        # Skip markets that don't match the filter
+                        if (
+                            self.market_type_filter
+                            and market_book.market_definition.market_type not in self.market_type_filter
+                        ):
+                            return
+                        # Skip ticks that don't match the status filter or conflation rules
                         if not self._passes_filters(market_book):
                             continue
                         if not self._passes_conflation(market_book, last_logged):
@@ -234,3 +282,27 @@ class BetfairStreamLoader:
             raise FileNotFoundError(f"No files matched: {pattern}")
         frames = [self.load(f) for f in files]
         return pd.concat(frames, ignore_index=True)
+
+
+# ---------------------------------------------------------------------------
+# Helpers used by build_dataset.py and backtest/datasources.py
+# ---------------------------------------------------------------------------
+
+def race_key(event_id, market_time) -> str:
+    """Identify a race by meeting (event_id) + scheduled start time.
+
+    The WIN, PLACE and MATCH_BET markets for one race share this key. Works on
+    both the loader's output (datetime) and a re-read CSV (string).
+    """
+    return f"{event_id}_{pd.Timestamp(market_time).strftime('%Y-%m-%dT%H:%M:%S')}"
+
+
+def load_stream(csv_path: str | Path) -> pd.DataFrame:
+    """Read a per-market CSV written by build_dataset.py back into a DataFrame."""
+    df = pd.read_csv(
+        csv_path,
+        dtype={"market_id": str, "event_id": str, "selection_id": "int64"},
+    )
+    df["publish_time"] = pd.to_datetime(df["publish_time"])
+    df["market_time"] = pd.to_datetime(df["market_time"])
+    return df

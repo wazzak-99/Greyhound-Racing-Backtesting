@@ -15,6 +15,27 @@ import re
 from backtest.context import MarketContext, MarketStatus, MarketType, RaceResult, RunnerState
 from data.streamloaders import load_stream, race_key
 
+def _ladder_columns(df: pd.DataFrame, side: str) -> list[tuple[str, str]]:
+    """(price_col, size_col) for each ladder level in the CSV, best first."""
+    cols = [(f"best_{side}_price", f"best_{side}_size")]
+    level = 2
+    while f"{side}_price_{level}" in df.columns:
+        cols.append((f"{side}_price_{level}", f"{side}_size_{level}"))
+        level += 1
+    return cols
+
+
+def _ladder(row, cols: list[tuple[str, str]]) -> list[tuple[float, float]]:
+    """Build a (price, size) ladder from one CSV row, stopping at the first empty level."""
+    ladder = []
+    for price_col, size_col in cols:
+        price = getattr(row, price_col)
+        if pd.isna(price):
+            break
+        ladder.append((price, getattr(row, size_col)))
+    return ladder
+
+
 @dataclass
 class MarketReplay:
     """
@@ -67,6 +88,8 @@ class StreamMarketSource(MarketSource):
         key = race_key(df["event_id"].iloc[-1], df["market_time"].iloc[-1])
         race_no = self.race_no_lookup.get(key)
         contexts: list[MarketContext] = []
+        back_cols = _ladder_columns(df, "back")
+        lay_cols = _ladder_columns(df, "lay")
 
         for publish_time, snapshot in df.groupby("publish_time", sort=False):
             runners = [
@@ -74,10 +97,8 @@ class StreamMarketSource(MarketSource):
                     selection_id=int(r.selection_id),
                     selection_name=r.selection_name,
                     removed=(r.runner_status == "REMOVED"),
-                    atb=[(r.best_back_price, r.best_back_size)] if pd.notna(r.best_back_price) else [],
-                    atl=[(r.best_lay_price, r.best_lay_size)] if pd.notna(r.best_lay_price) else [],
-                    sp_near=r.sp_near if pd.notna(r.sp_near) else None,
-                    sp_far=r.sp_far if pd.notna(r.sp_far) else None,
+                    atb=_ladder(r, back_cols),
+                    atl=_ladder(r, lay_cols),
                     last_price_traded=r.last_price_traded if pd.notna(r.last_price_traded) else None,
                     total_matched=r.total_runner_matched if pd.notna(r.total_runner_matched) else None,
                     adjustment_factor=r.adjustment_factor if pd.notna(r.adjustment_factor) else None,
@@ -106,12 +127,10 @@ class StreamMarketSource(MarketSource):
         result = RaceResult(
             market_id=market_id,
             winner_selection_id=int(winner.index[0]),
-            bsp={
-                int(sel_id): row.sp
-                for sel_id, row in final.iterrows()
-                if pd.notna(row.sp)
-            }
+            bsp=(
+                {int(sel_id): row.sp for sel_id, row in final.iterrows() if pd.notna(row.sp)}
+                if "sp" in final.columns else {}
+            ),
         )
 
-        return MarketReplay(contexts=contexts, result=result) 
-
+        return MarketReplay(contexts=contexts, result=result)
