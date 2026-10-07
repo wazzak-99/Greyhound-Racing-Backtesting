@@ -1,0 +1,16 @@
+# Data (too large for git; see README)
+/data/raw/*
+!/data/raw/.gitkeep
+/data/processed/*
+!/data/processed/.gitkeep
+
+# Backtest outputs
+/research/results/
+
+# Python / editor
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.env
+.vscode/
+local
