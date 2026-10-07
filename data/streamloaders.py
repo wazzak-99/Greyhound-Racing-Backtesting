@@ -123,6 +123,7 @@ class BetfairStreamLoader:
     ) -> None:
         self.extractors = {**COLUMN_EXTRACTORS, **(extra_columns or {})}
 
+        # Checks that the columns requested all exist as built-in extractors
         columns = list(columns)
         unknown = set(columns) - set(self.extractors)
         if unknown:
