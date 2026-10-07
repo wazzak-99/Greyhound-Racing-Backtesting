@@ -16,9 +16,9 @@ from backtest.context import MarketContext, MarketStatus, MarketType, RaceResult
 from data.streamloaders import load_stream, race_key
 
 def _ladder_columns(df: pd.DataFrame, side: str) -> list[tuple[str, str]]:
-    """(price_col, size_col) for each ladder level in the CSV, best first."""
-    cols = [(f"best_{side}_price", f"best_{side}_size")]
-    level = 2
+    """(price_col, size_col) for each ladder level in the CSV: back_price_1, back_price_2, ..."""
+    cols = []
+    level = 1
     while f"{side}_price_{level}" in df.columns:
         cols.append((f"{side}_price_{level}", f"{side}_size_{level}"))
         level += 1
@@ -26,7 +26,7 @@ def _ladder_columns(df: pd.DataFrame, side: str) -> list[tuple[str, str]]:
 
 
 def _ladder(row, cols: list[tuple[str, str]]) -> list[tuple[float, float]]:
-    """Build a (price, size) ladder from one CSV row, stopping at the first empty level."""
+    """Build a (price, size) ladder from one CSV row, best first, stopping at the first empty level."""
     ladder = []
     for price_col, size_col in cols:
         price = getattr(row, price_col)

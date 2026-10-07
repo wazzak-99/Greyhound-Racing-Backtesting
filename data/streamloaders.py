@@ -35,7 +35,7 @@ _CURRENCY_CONVERTER = CurrencyConverter(fallback_on_wrong_date=True, fallback_on
 
 @lru_cache(maxsize=None)
 def _gbp_aud_rate(day) -> float:
-    """Caches and gets GBP -> AUD rate for one day."""
+    """GBP -> AUD rate for one day. Cached, since the rate only changes daily."""
     return _CURRENCY_CONVERTER.convert(1.0, "GBP", "AUD", date=day)
 
 
@@ -46,7 +46,7 @@ def _gbp_to_aud(amount: Optional[float], market_book: MarketBook) -> Optional[fl
 
 
 def _level(ladder, i: int):
-    """The i-th best level (0 = best) of a ladder, or None if it isn't that deep."""
+    """Level i of a ladder (0 = best price), or None if it isn't that deep."""
     return ladder[i] if len(ladder) > i else None
 
 
@@ -65,26 +65,19 @@ COLUMN_EXTRACTORS: dict[str, ColumnExtractor] = {
     "last_price_traded": lambda mb, r, rd: r.last_price_traded,
     "total_matched": lambda mb, r, rd: _gbp_to_aud(mb.total_matched, mb),
     "total_runner_matched": lambda mb, r, rd: _gbp_to_aud(r.total_matched, mb),
-    "best_back_price": lambda mb, r, rd: r.ex.available_to_back[0].price if r.ex.available_to_back else None,
-    "best_back_size": lambda mb, r, rd: _gbp_to_aud(
-        r.ex.available_to_back[0].size if r.ex.available_to_back else None, mb
-    ),
-    "best_lay_price": lambda mb, r, rd: r.ex.available_to_lay[0].price if r.ex.available_to_lay else None,
-    "best_lay_size": lambda mb, r, rd: _gbp_to_aud(
-        r.ex.available_to_lay[0].size if r.ex.available_to_lay else None, mb
-    ),
     "adjustment_factor": lambda mb, r, rd: rd.adjustment_factor if rd else None,
     # ACTIVE / REMOVED / WINNER / LOSER (the backtester uses this to find the winner)
     "runner_status": lambda mb, r, rd: rd.status if rd else r.status,
 }
 
-# Deeper ladder levels: back_price_2, back_size_2, lay_price_2, ... up to LADDER_DEPTH.
+# Order book ladder columns, numbered from 1 (best price) up to LADDER_DEPTH:
+# back_price_1, back_size_1, lay_price_1, lay_size_1, back_price_2, ...
 LADDER_DEPTH = 3
 
 
 def _ladder_extractors(depth: int) -> dict[str, ColumnExtractor]:
     out: dict[str, ColumnExtractor] = {}
-    for level in range(2, depth + 1):
+    for level in range(1, depth + 1):
         i = level - 1
         for side, attr in (("back", "available_to_back"), ("lay", "available_to_lay")):
             out[f"{side}_price_{level}"] = (
@@ -110,10 +103,10 @@ DEFAULT_COLUMNS = [
     "selection_name",   
     "last_price_traded",
     "total_matched",
-    "best_back_price",
-    "best_back_size",
-    "best_lay_price",
-    "best_lay_size",
+    "back_price_1",
+    "back_size_1",
+    "lay_price_1",
+    "lay_size_1",
 ]
 
 
@@ -121,8 +114,8 @@ class BetfairStreamLoader:
     """Streams Betfair historical .bz2 market-stream files into rows/DataFrames.
 
     ## Notes:
-        - Size amounts for `total_matched`, `total_runner_matched`, `best_back_size` \
-        and `best_lay_size` have been converted from GBP to AUD. The amounts given in \
+        - Size amounts for `total_matched`, `total_runner_matched` and all \
+        `back_size_N` / `lay_size_N` columns have been converted from GBP to AUD. The amounts given in \
         the data are in GBP. Convert it manually if you wish to add extra columns.
         - Look into this module to find all possible column extractors since I'm too \
         lazy to write them all here (you can define your own with the `extra_columns` \
@@ -206,6 +199,7 @@ class BetfairStreamLoader:
     # ---------------------------------------------------------------------------
 
     def _iter_rows(self, bz2_path: str | Path):
+        # Historical files need no login, but the client still requires an app key, so pass a dummy one.
         trading = betfairlightweight.APIClient("username", "password", app_key="historical")
         listener = StreamListener(
             max_latency=None,
@@ -229,13 +223,12 @@ class BetfairStreamLoader:
 
                 for market_books in gen():
                     for market_book in market_books:
-                        # Skip markets that don't match the filter
+                        # A file holds one market, so if its type is wrong, stop reading it.
                         if (
                             self.market_type_filter
                             and market_book.market_definition.market_type not in self.market_type_filter
                         ):
                             return
-                        # Skip ticks that don't match the status filter or conflation rules
                         if not self._passes_filters(market_book):
                             continue
                         if not self._passes_conflation(market_book, last_logged):
@@ -303,6 +296,6 @@ def load_stream(csv_path: str | Path) -> pd.DataFrame:
         csv_path,
         dtype={"market_id": str, "event_id": str, "selection_id": "int64"},
     )
-    df["publish_time"] = pd.to_datetime(df["publish_time"])
-    df["market_time"] = pd.to_datetime(df["market_time"])
+    df["publish_time"] = pd.to_datetime(df["publish_time"], format="ISO8601")
+    df["market_time"] = pd.to_datetime(df["market_time"], format="ISO8601")
     return df

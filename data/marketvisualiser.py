@@ -58,13 +58,11 @@ def clear_screen() -> None:
 # ---------------------------------------------------------------------------
 
 def depth_columns(depth: int) -> tuple[str, str, str, str]:
-    if depth == 1:
-        return "best_back_price", "best_back_size", "best_lay_price", "best_lay_size"
     return (
-        f"{depth}_back_price",
-        f"{depth}_back_size",
-        f"{depth}_lay_price",
-        f"{depth}_lay_size",
+        f"back_price_{depth}",
+        f"back_size_{depth}",
+        f"lay_price_{depth}",
+        f"lay_size_{depth}",
     )
 
 
@@ -341,10 +339,10 @@ NECESSARY_COLUMNS = [
     "last_price_traded",
     "total_matched",
     "total_runner_matched",
-    "best_back_price",
-    "best_back_size",
-    "best_lay_price",
-    "best_lay_size"
+    "back_price_1",
+    "back_size_1",
+    "lay_price_1",
+    "lay_size_1",
 ]
 
 def validate_csv(csv_path: str) -> list[str]:
