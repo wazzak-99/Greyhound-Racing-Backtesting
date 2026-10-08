@@ -8,15 +8,16 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Iterator
 
-import pandas as pd
 import glob
-import re
+
+import numpy as np
+import pandas as pd
 
 from backtest.context import MarketContext, MarketStatus, MarketType, RaceResult, RunnerState
 from data.streamloaders import load_stream, race_key, read_market_type
 
 def _ladder_columns(df: pd.DataFrame, side: str) -> list[tuple[str, str]]:
-    """(price_col, size_col) for each ladder level in the CSV: back_price_1, back_price_2, ..."""
+    """(price_col, size_col) for each ladder level in the file: back_price_1, back_price_2, ..."""
     cols = []
     level = 1
     while f"{side}_price_{level}" in df.columns:
@@ -25,15 +26,23 @@ def _ladder_columns(df: pd.DataFrame, side: str) -> list[tuple[str, str]]:
     return cols
 
 
-def _ladder(row, cols: list[tuple[str, str]]) -> list[tuple[float, float]]:
-    """Build a (price, size) ladder from one CSV row, best first, stopping at the first empty level."""
-    ladder = []
-    for price_col, size_col in cols:
-        price = getattr(row, price_col)
-        if pd.isna(price):
-            break
-        ladder.append((price, getattr(row, size_col)))
-    return ladder
+def _optional(series: pd.Series) -> list:
+    """Column as a plain Python list, with missing values as None."""
+    return series.astype(object).where(series.notna(), None).tolist()
+
+
+def _ladders(df: pd.DataFrame, cols: list[tuple[str, str]]) -> list[list[tuple[float, float]]]:
+    """Returns (price, size) ladder for every row, best first, stopping at the first empty level."""
+    levels = [(df[p].tolist(), df[z].tolist(), df[p].isna().to_numpy()) for p, z in cols]
+    out = []
+    for i in range(len(df)):
+        ladder = []
+        for prices, sizes, missing in levels:
+            if missing[i]:
+                break
+            ladder.append((prices[i], sizes[i]))
+        out.append(ladder)
+    return out
 
 
 @dataclass
@@ -87,33 +96,53 @@ class StreamMarketSource(MarketSource):
         key = race_key(df["event_id"].iloc[-1], df["market_time"].iloc[-1])
         race_no = self.race_no_lookup.get(key)
         contexts: list[MarketContext] = []
-        back_cols = _ladder_columns(df, "back")
-        lay_cols = _ladder_columns(df, "lay")
 
-        for publish_time, snapshot in df.groupby("publish_time", sort=False):
+        # Group rows by update (publish_time)
+        codes, update_times = pd.factorize(df["publish_time"])
+        order = np.argsort(codes, kind="stable")
+        df = df.iloc[order].reset_index(drop=True)
+        bounds = np.flatnonzero(np.diff(codes[order])) + 1
+        starts = np.concatenate(([0], bounds))
+        ends = np.concatenate((bounds, [len(df)]))
+
+        # Convert each column to a plain Python list once (much faster than reading row by row).
+        selection_id = df["selection_id"].astype(int).tolist()
+        selection_name = df["selection_name"].tolist()
+        removed = (df["runner_status"] == "REMOVED").tolist()
+        atb = _ladders(df, _ladder_columns(df, "back"))
+        atl = _ladders(df, _ladder_columns(df, "lay"))
+        last_price_traded = _optional(df["last_price_traded"])
+        total_matched = _optional(df["total_runner_matched"])
+        adjustment_factor = _optional(df["adjustment_factor"])
+        venue = df["venue"].tolist()
+        market_time = df["market_time"].tolist()
+        status = df["status"].tolist()
+        market_type = MarketType(market_type)
+
+        for publish_time, start, end in zip(update_times, starts, ends):
             runners = [
                 RunnerState(
-                    selection_id=int(r.selection_id),
-                    selection_name=r.selection_name,
-                    removed=(r.runner_status == "REMOVED"),
-                    atb=_ladder(r, back_cols),
-                    atl=_ladder(r, lay_cols),
-                    last_price_traded=r.last_price_traded if pd.notna(r.last_price_traded) else None,
-                    total_matched=r.total_runner_matched if pd.notna(r.total_runner_matched) else None,
-                    adjustment_factor=r.adjustment_factor if pd.notna(r.adjustment_factor) else None,
+                    selection_id=selection_id[i],
+                    selection_name=selection_name[i],
+                    removed=removed[i],
+                    atb=atb[i],
+                    atl=atl[i],
+                    last_price_traded=last_price_traded[i],
+                    total_matched=total_matched[i],
+                    adjustment_factor=adjustment_factor[i],
                 )
-                for r in snapshot.itertuples()
+                for i in range(start, end)
             ]
 
             contexts.append(MarketContext(
                 market_id=market_id,
-                venue=snapshot["venue"].iloc[0],
+                venue=venue[start],
                 race_no=race_no,
-                market_time=snapshot["market_time"].iloc[0],
+                market_time=market_time[start],
                 publish_time=publish_time,
                 runners=runners,
-                status=MarketStatus(snapshot["status"].iloc[0]),
-                market_type=MarketType(market_type)
+                status=MarketStatus(status[start]),
+                market_type=market_type,
             ))
 
         final = df.groupby("selection_id").last()
