@@ -18,10 +18,10 @@ sys.path.insert(0, str(ROOT))
 from backtest.context import MarketType  # noqa: E402
 from backtest.datasources import StreamMarketSource  # noqa: E402
 from backtest.engine import Engine  # noqa: E402
-from backtest.execution import TickExecutionModel  # noqa: E402
+from backtest.execution import QueueExecutionModel  # noqa: E402
 from backtest.ledger import Ledger  # noqa: E402
 from backtest.staking import FlatStake  # noqa: E402
-from strategies.template import TemplateStrategy  # noqa: E402
+from strategies.queue_test import QueueTestStrategy  # noqa: E402
 
 PROCESSED = ROOT / "data/processed/market_stream"
 
@@ -31,19 +31,21 @@ def main() -> None:
         race_no_lookup = json.load(f)
 
     source = StreamMarketSource(
-        pattern=str(PROCESSED / "*/*/*/*.parquet"),   # e.g. "Oct/1/*/*.parquet" for a single day
+        pattern=str(PROCESSED / "Jan/1/*/*.parquet"),   # e.g. "Oct/1/*/*.parquet" for a single day
         race_no_lookup=race_no_lookup,
         market_type_filter={MarketType.WIN},      # WIN, PLACE and/or MATCH_BET
     )
-    strategy = TemplateStrategy()
-    execution = TickExecutionModel()
+    strategy = QueueTestStrategy()
+    execution = QueueExecutionModel(latency=0.2, ladder_depth=3)
     ledger = Ledger(commission_rate=0.04)
     staking = FlatStake(stake=1.0)
 
     engine = Engine(source, strategy, execution, ledger, staking, starting_bankroll=1000.0)
     engine.run()
 
-    print(ledger.summary())
+    summary = ledger.summary()
+    for key, value in summary.items():
+        print(f"{key}: {value}")
     out = ROOT / "research" / "results"
     out.mkdir(parents=True, exist_ok=True)
     ledger.bets_frame().to_csv(out / "bets.csv", index=False)

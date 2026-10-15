@@ -91,12 +91,15 @@ class StreamMarketSource(MarketSource):
                 yield replay
 
     def _build_replay(self, df: pd.DataFrame) -> MarketReplay:
+
+        # Race details
         market_id = str(df["market_id"].iloc[-1])
         market_type = str(df["market_type"].iloc[-1])
         key = race_key(df["event_id"].iloc[-1], df["market_time"].iloc[-1])
         race_no = self.race_no_lookup.get(key)
-        contexts: list[MarketContext] = []
 
+        contexts: list[MarketContext] = []
+        
         # Group rows by update (publish_time)
         codes, update_times = pd.factorize(df["publish_time"])
         order = np.argsort(codes, kind="stable")
@@ -105,7 +108,7 @@ class StreamMarketSource(MarketSource):
         starts = np.concatenate(([0], bounds))
         ends = np.concatenate((bounds, [len(df)]))
 
-        # Convert each column to a plain Python list once (much faster than reading row by row).
+        # Convert each column to a list
         selection_id = df["selection_id"].astype(int).tolist()
         selection_name = df["selection_name"].tolist()
         removed = (df["runner_status"] == "REMOVED").tolist()
@@ -114,6 +117,10 @@ class StreamMarketSource(MarketSource):
         last_price_traded = _optional(df["last_price_traded"])
         total_matched = _optional(df["total_runner_matched"])
         adjustment_factor = _optional(df["adjustment_factor"])
+        if "traded_prices" in df.columns:
+            traded = [list(zip(p.tolist(), s.tolist())) for p, s in zip(df["traded_prices"], df["traded_sizes"])]
+        else:
+            traded = [[] for _ in range(len(df))]
         venue = df["venue"].tolist()
         market_time = df["market_time"].tolist()
         status = df["status"].tolist()
@@ -130,6 +137,7 @@ class StreamMarketSource(MarketSource):
                     last_price_traded=last_price_traded[i],
                     total_matched=total_matched[i],
                     adjustment_factor=adjustment_factor[i],
+                    traded=traded[i],
                 )
                 for i in range(start, end)
             ]

@@ -44,6 +44,7 @@ class RunnerState:
     total_matched: Optional[float] = None
 
     adjustment_factor: Optional[float] = None
+    traded: list[tuple[float, float]] = field(default_factory=list) # (price, size) of matched bets
 
     def pull_price_size(self, side: Side, depth: int = 1) -> Optional[tuple[float, float]]:
         """Gets (price, size) at the given ladder depth (1 is nearest). Assumes list is sorted."""
@@ -97,4 +98,13 @@ class Order:
     side: Side
     price: Optional[float] = None # None = take best available at market
     stake: Optional[float] = None # None = let a Staking model decide
+    keep_unmatched: bool = False # if True, unmatched stake waits at `price` until filled, cancelled, or lapsed; 
+                                 # if False, order is fill-or-kill
+    tag: Optional[str] = None # optional tag for strategy (e.g. "entry", "exit", etc.)
+    order_id: Optional[int] = None # set by the Engine
+
+@dataclass
+class Cancel:
+    """Return from on_snapshot to cancel a resting order."""
+    order_id: int
     
