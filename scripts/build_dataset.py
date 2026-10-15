@@ -37,13 +37,13 @@ from data.streamloaders import ALL_COLUMNS, BetfairStreamLoader, race_key  # noq
 # ---------------------------------------------------------------------------
 
 # The folder that directly contains the month folders (Oct/, Nov/, ...)
-SOURCE_ROOT = ROOT / "data/raw/market_stream/2025_10_ProAUSGreyhounds/PRO/2025"
+SOURCE_ROOT = ROOT / "data/raw/market_stream/2025_01_ProAUSGreyhounds/PRO/2025"
 DEST_ROOT = ROOT / "data/processed/market_stream"
-MARKET_TYPES = ["WIN", "PLACE", "MATCH_BET"]
+MARKET_TYPES = ["WIN", "MATCH_BET"]
 
 # Which raw files to process, relative to SOURCE_ROOT: <month>/<day>/<event_id>/<market_id>.bz2
 # Use "Oct/1/*/*.bz2" to test on a single day first.
-PATTERN = "*/*/*/*.bz2"
+PATTERN = "JAN/1/*/*.bz2"
 
 # Number of files processed at once (default: one per CPU core).
 # Lower it if your computer is too slow to use while this runs.
@@ -51,7 +51,7 @@ WORKERS = os.cpu_count() or 1
 
 # Skip markets that already have a file (lets you resume an interrupted run).
 # Set to False if you change the loader and want to rebuild everything.
-SKIP_EXISTING = True
+SKIP_EXISTING = False
 
 RACE_NO_RE = re.compile(r"R(\d+)")  # WIN market names look like "R1 330m Mdn"
 

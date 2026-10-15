@@ -91,8 +91,10 @@ def _ladder_extractors(depth: int) -> dict[str, ColumnExtractor]:
 
 COLUMN_EXTRACTORS.update(_ladder_extractors(LADDER_DEPTH))
 
-# Every column above, in order. This is what build_dataset.py writes.
-ALL_COLUMNS = list(COLUMN_EXTRACTORS)
+# AUD newly traded at each price since the runner's last row (not available with extra_columns)
+TRADED_COLUMNS = ["traded_prices", "traded_sizes"]
+
+ALL_COLUMNS = list(COLUMN_EXTRACTORS) + TRADED_COLUMNS
 
 # Columns converted from GBP to AUD (rounded to cents).
 _SIZE_COLUMNS = [c for c in ALL_COLUMNS if c in ("total_matched", "total_runner_matched") or "_size_" in c]
@@ -163,11 +165,13 @@ class BetfairStreamLoader:
         self._use_fast_path = not extra_columns
 
         columns = list(columns)
-        unknown = set(columns) - set(self.extractors)
+        unknown = set(columns) - set(self.extractors) - set(TRADED_COLUMNS)
         if unknown:
             raise ValueError(
-                f"Unknown column(s): {sorted(unknown)}. Available: {sorted(self.extractors)}"
+                f"Unknown column(s): {sorted(unknown)}. Available: {sorted(self.extractors) + TRADED_COLUMNS}"
             )
+        if not self._use_fast_path and set(columns) & set(TRADED_COLUMNS):
+            raise ValueError(f"{TRADED_COLUMNS} can't be combined with extra_columns.")
         self.columns = columns
 
         self.conflate_seconds = conflate_seconds
@@ -262,6 +266,8 @@ class BetfairStreamLoader:
         market-level fields and times are worked out once per update instead of once per
         cell, and sizes are left unrounded (load() rounds them all at once)."""
         last_book = None
+        runner_total: dict[int, float] = {}               # selection_id -> total matched (GBP)
+        price_total: dict[tuple[int, float], float] = {}  # (selection_id, price) -> total matched (GBP)
         for mb, r, rd in self._iter_runner_books(bz2_path):
             if mb is not last_book:
                 last_book = mb
@@ -292,6 +298,18 @@ class BetfairStreamLoader:
                 else:
                     ladder += (None, None)
 
+            # Only scan traded volume if the runner's total changed
+            traded_prices, traded_sizes = [], []
+            if r.total_matched and r.total_matched != runner_total.get(r.selection_id):
+                runner_total[r.selection_id] = r.total_matched
+                for ps in r.ex.traded_volume:
+                    key = (r.selection_id, ps.price)
+                    new = ps.size - price_total.get(key, 0.0)
+                    if new > 1e-9:  # ignore drops (Betfair clearing prices)
+                        traded_prices.append(ps.price)
+                        traded_sizes.append(round(new * rate, 2))
+                        price_total[key] = ps.size
+
             yield head + (
                 r.selection_id,
                 rd.name if rd else None,
@@ -301,6 +319,8 @@ class BetfairStreamLoader:
                 rd.adjustment_factor if rd else None,
                 rd.status if rd else r.status,
                 *ladder,
+                traded_prices,
+                traded_sizes,
             )
 
     # ---------------------------------------------------------------------------
@@ -320,6 +340,8 @@ class BetfairStreamLoader:
 
     def load_to_csv(self, bz2_path: str | Path, out_path: str | Path) -> None:
         """Stream a .bz2 market-stream file straight to CSV without holding it all in memory."""
+        if set(self.columns) & set(TRADED_COLUMNS):
+            raise ValueError(f"{TRADED_COLUMNS} are lists and can't be written to CSV. Use load() instead.")
         with open(out_path, "w", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=self.columns)
             writer.writeheader()
