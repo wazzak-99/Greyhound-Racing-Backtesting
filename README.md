@@ -26,7 +26,7 @@ Tips:
 
 - Test on a single day first by setting `PATTERN = "Oct/1/*/*.bz2"` at the top of `build_dataset.py`. The script prints how long it has left, so you can estimate the full month from there.
 - It uses **every** CPU core by default. Lower `WORKERS` if your computer is too slow to use while it runs.
-- If the run stops part-way, just run it again. Markets that already have a file are skipped.
+- If the run stops part-way, just run it again. Markets that already have a file are skipped (Make sure `SKIP_EXISTING` is set to `True`)
 
 ### Columns
 
@@ -41,20 +41,19 @@ Run a strategy with `python scripts/run_backtest.py`. Results are saved to `rese
 
 Limitations and things that need to be implemented, none of these are a limitation of the data itself, we can implement them quickly:
 
-1. The current engine is taker-only (reactive, fill-or-kill); proactive strategies can't be simulated right now.
+~~1. The current engine is taker-only (reactive, fill-or-kill); proactive strategies can't be simulated right now.~~
 
 2. A Strategy cannot read from multiple markets simultaneously (not implemented).
 
-3. Strategies can't track inventory yet (not implemented).
+~~3. Strategies can't track inventory yet (not implemented).~~
 
-4. The processed files keep multiple depth levels (from `streamloaders.py`). `datasources.py` now passes this to Strategy, but the execution model
-still matches every order against the best level only.
+~~4. The processed files keep multiple depth levels (from `streamloaders.py`). `datasources.py` now passes this to Strategy, but the execution model still matches every order against the best level only.~~
 
-5. Liquidity is never used up. Several orders in the same tick, or on consecutive ticks, can each take the full size at the best price.
+~~5. Liquidity is never used up. Several orders in the same tick, or on consecutive ticks, can each take the full size at the best price.~~
 
-6. Traded volume per price not passed to Strategy (the Strategy only knows about the general traded volume and last traded price).
+~~6. Traded volume per price not passed to Strategy (the Strategy only knows about the general traded volume and last traded price).~~
 
-7. Engine assumes zero latency.
+~~7. Engine assumes zero latency.~~
 
 8. The bankroll never updates after the start, only a fixed staking model is implemented.
 
