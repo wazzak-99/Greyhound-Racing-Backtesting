@@ -39,11 +39,11 @@ from data.streamloaders import ALL_COLUMNS, BetfairStreamLoader, race_key  # noq
 # The folder that directly contains the month folders (Oct/, Nov/, ...)
 SOURCE_ROOT = ROOT / "data/raw/market_stream/2025_01_ProAUSGreyhounds/PRO/2025"
 DEST_ROOT = ROOT / "data/processed/market_stream"
-MARKET_TYPES = ["WIN", "MATCH_BET"]
+MARKET_TYPES = ["WIN"]
 
 # Which raw files to process, relative to SOURCE_ROOT: <month>/<day>/<event_id>/<market_id>.bz2
 # Use "Oct/1/*/*.bz2" to test on a single day first.
-PATTERN = "JAN/1/*/*.bz2"
+PATTERN = "JAN/*/*/*.bz2"
 
 # Number of files processed at once (default: one per CPU core).
 # Lower it if your computer is too slow to use while this runs.
