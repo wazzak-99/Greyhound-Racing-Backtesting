@@ -36,10 +36,13 @@ import glob
 import importlib
 import importlib.util
 import json
+import os
 import re
 import sys
 import time
+from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
+from functools import partial
 from pathlib import Path
 from typing import Iterator
 
@@ -79,6 +82,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--latency", type=float, default=0.2)
     p.add_argument("--out", default=None, help="output folder (default research/results/<class>)")
     p.add_argument("--print-every", type=int, default=25)
+    p.add_argument("--workers", type=int, default=0,
+                   help="number of worker processes to use (0 = all cores, 1 = disable parallelism)")
     return p.parse_args()
 
 
@@ -114,6 +119,48 @@ def load_strategy_class(strategy: str, class_name: str):
         classes = [n for n in dir(module) if isinstance(getattr(module, n), type)]
         sys.exit(f"No class '{class_name}' in {strategy}. Classes found: {', '.join(classes)}")
     return getattr(module, class_name)
+
+
+class _SingleReplaySource:
+    """Minimal MarketSource for a single replay so one file can be evaluated in a worker process."""
+
+    def __init__(self, replay):
+        self.replay = replay
+
+    def markets(self):
+        yield self.replay
+
+
+def _run_market_file(path: str, strategy_ref: str, class_name: str, params: dict,
+                     commission: float, latency: float,
+                     race_no_lookup: dict[str, int]) -> dict:
+    """Backtest one parquet file in a separate process and return aggregated results."""
+    strategy_cls = load_strategy_class(strategy_ref, class_name)
+    strategy = strategy_cls(**params)
+    replay = StreamMarketSource(pattern=path, race_no_lookup=race_no_lookup,
+                               market_type_filter={MarketType.WIN})._build_replay(load_stream(path))
+    if replay is None:
+        return {"bets": [], "markets": [], "fills": [], "inventory": [], "files_done": 0}
+
+    ledger = Ledger(commission_rate=commission)
+    engine = Engine(_SingleReplaySource(replay), strategy,
+                    QueueExecutionModel(latency=latency, ladder_depth=3),
+                    ledger, FlatStake(1.0), starting_bankroll=1000.0)
+    engine.run()
+
+    return {
+        "bets": [vars(b) for b in ledger.bets],
+        "markets": [vars(m) for m in ledger.markets],
+        "fills": list(getattr(strategy, "fill_log", [])),
+        "inventory": list(getattr(strategy, "market_log", [])),
+        "files_done": 1,
+    }
+
+
+def _workers_for(args) -> int:
+    if args.workers is None or args.workers <= 0:
+        return os.cpu_count() or 1
+    return args.workers
 
 
 # ---------------------------------------------------------------------------
@@ -213,14 +260,21 @@ def _fmt(seconds: float) -> str:
 # Summary
 # ---------------------------------------------------------------------------
 
-def summarise(ledger: Ledger, strategy, commission: float) -> None:
-    m = ledger.markets_frame()
-    if m.empty:
+def summarise(ledger: Ledger | None, strategy, commission: float,
+              bets: pd.DataFrame | None = None,
+              markets: pd.DataFrame | None = None,
+              fills: pd.DataFrame | None = None) -> None:
+    if markets is None or bets is None:
+        if ledger is None:
+            raise ValueError("Either a ledger or markets/bets frames are required.")
+        markets = ledger.markets_frame()
+        bets = ledger.bets_frame()
+    if fills is None:
+        fills = pd.DataFrame(getattr(strategy, "fill_log", []))
+    if markets.empty:
         print("No markets were traded.")
         return
-    bets = ledger.bets_frame()
-    fills = pd.DataFrame(getattr(strategy, "fill_log", []))
-    x, g = m["net_pnl"], m["gross_pnl"]
+    x, g = markets["net_pnl"], markets["gross_pnl"]
     n = len(x)
     sd = x.std(ddof=1)
     t = x.mean() / (sd / np.sqrt(n)) if n > 1 and sd > 0 else float("nan")
@@ -228,7 +282,7 @@ def summarise(ledger: Ledger, strategy, commission: float) -> None:
     print("\n================ SUMMARY ================")
     print(f"markets traded      {n}")
     print(f"gross PnL           {g.sum():+.2f}")
-    print(f"commission          {m['commission'].sum():.2f}  (rate {commission:.0%})")
+    print(f"commission          {markets['commission'].sum():.2f}  (rate {commission:.0%})")
     print(f"net PnL             {x.sum():+.2f}")
     print(f"mean / median       {x.mean():+.4f} / {x.median():+.4f} per market")
     print(f"std dev             {sd:.4f} per market")
@@ -274,38 +328,71 @@ def main() -> None:
 
     print(f"Strategy  {args.class_name} from {args.strategy}  {params or ''}")
     print(f"Data      {' '.join(args.data)}   commission {args.commission:.0%}   latency {args.latency}s")
-    strategy = strategy_cls(**params)
-    ledger = Ledger(commission_rate=args.commission)
-    source = ProgressSource(files, pattern=str(PROCESSED), race_no_lookup=race_no_lookup,
-                            market_type_filter={MarketType.WIN}, ledger=ledger, strategy=strategy,
-                            print_every=args.print_every)
-    engine = Engine(source, strategy, QueueExecutionModel(latency=args.latency, ladder_depth=3),
-                    ledger, FlatStake(1.0), starting_bankroll=1000.0)
 
+    workers = _workers_for(args)
     started = datetime.now()
-    try:
-        engine.run()
+
+    if workers == 1 or len(files) == 1:
+        strategy = strategy_cls(**params)
+        ledger = Ledger(commission_rate=args.commission)
+        source = ProgressSource(files, pattern=str(PROCESSED), race_no_lookup=race_no_lookup,
+                                market_type_filter={MarketType.WIN}, ledger=ledger, strategy=strategy,
+                                print_every=args.print_every)
+        engine = Engine(source, strategy, QueueExecutionModel(latency=args.latency, ladder_depth=3),
+                        ledger, FlatStake(1.0), starting_bankroll=1000.0)
+
+        try:
+            engine.run()
+            finished = True
+        except KeyboardInterrupt:
+            print("\nStopped early - saving the markets finished so far.")
+            finished = False
+
+        bets_df = ledger.bets_frame()
+        markets_df = ledger.markets_frame()
+        fills_df = pd.DataFrame(getattr(strategy, "fill_log", []))
+        inventory_df = pd.DataFrame(getattr(strategy, "market_log", []))
+        files_done = source.done
+    else:
+        print(f"Parallel mode: {workers} workers across {len(files)} files")
+        task = partial(_run_market_file, strategy_ref=args.strategy, class_name=args.class_name,
+                       params=params, commission=args.commission, latency=args.latency,
+                       race_no_lookup=race_no_lookup)
+        results = []
+        with ProcessPoolExecutor(max_workers=workers) as pool:
+            for idx, result in enumerate(pool.map(task, files, chunksize=max(1, len(files) // (workers * 4))), 1):
+                results.append(result)
+                if idx % 10 == 0 or idx == len(files):
+                    print(f"[{idx:>6}/{len(files)}] files processed", flush=True)
+
+        bets_frames = [pd.DataFrame(r["bets"]) for r in results if r["bets"]]
+        markets_frames = [pd.DataFrame(r["markets"]) for r in results if r["markets"]]
+        fills_frames = [pd.DataFrame(r["fills"]) for r in results if r["fills"]]
+        inventory_frames = [pd.DataFrame(r["inventory"]) for r in results if r["inventory"]]
+
+        bets_df = pd.concat(bets_frames, ignore_index=True) if bets_frames else pd.DataFrame()
+        markets_df = pd.concat(markets_frames, ignore_index=True) if markets_frames else pd.DataFrame()
+        fills_df = pd.concat(fills_frames, ignore_index=True) if fills_frames else pd.DataFrame()
+        inventory_df = pd.concat(inventory_frames, ignore_index=True) if inventory_frames else pd.DataFrame()
+        files_done = sum(r["files_done"] for r in results)
         finished = True
-    except KeyboardInterrupt:
-        print("\nStopped early - saving the markets finished so far.")
-        finished = False
 
     out = Path(args.out) if args.out else ROOT / "research" / "results" / args.class_name
     if not out.is_absolute():
         out = ROOT / out
     out.mkdir(parents=True, exist_ok=True)
-    ledger.bets_frame().to_csv(out / "bets.csv", index=False)
-    ledger.markets_frame().to_csv(out / "markets.csv", index=False)
-    pd.DataFrame(getattr(strategy, "fill_log", [])).to_csv(out / "fills.csv", index=False)
-    pd.DataFrame(getattr(strategy, "market_log", [])).to_csv(out / "inventory.csv", index=False)
+    bets_df.to_csv(out / "bets.csv", index=False)
+    markets_df.to_csv(out / "markets.csv", index=False)
+    fills_df.to_csv(out / "fills.csv", index=False)
+    inventory_df.to_csv(out / "inventory.csv", index=False)
     (out / "run_config.json").write_text(json.dumps({
         "strategy": args.strategy, "class": args.class_name, "params": params,
-        "data": args.data, "files": len(files), "files_done": source.done,
+        "data": args.data, "files": len(files), "files_done": files_done,
         "finished": finished, "commission": args.commission, "latency": args.latency,
-        "started": started.isoformat(timespec="seconds"),
+        "workers": workers, "started": started.isoformat(timespec="seconds"),
     }, indent=2, default=str))
 
-    summarise(ledger, strategy, args.commission)
+    summarise(None, strategy_cls(**params), args.commission, bets=bets_df, markets=markets_df, fills=fills_df)
     print(f"Saved bets, markets, fills, inventory and run_config to {out}")
 
 
