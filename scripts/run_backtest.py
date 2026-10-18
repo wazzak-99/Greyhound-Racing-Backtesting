@@ -263,7 +263,13 @@ def _fmt(seconds: float) -> str:
 def summarise(ledger: Ledger | None, strategy, commission: float,
               bets: pd.DataFrame | None = None,
               markets: pd.DataFrame | None = None,
-              fills: pd.DataFrame | None = None) -> None:
+              fills: pd.DataFrame | None = None) -> str:
+    summary_lines: list[str] = []
+
+    def log(msg: str) -> None:
+        print(msg)
+        summary_lines.append(str(msg))
+
     if markets is None or bets is None:
         if ledger is None:
             raise ValueError("Either a ledger or markets/bets frames are required.")
@@ -272,41 +278,42 @@ def summarise(ledger: Ledger | None, strategy, commission: float,
     if fills is None:
         fills = pd.DataFrame(getattr(strategy, "fill_log", []))
     if markets.empty:
-        print("No markets were traded.")
-        return
+        log("No markets were traded.")
+        return "\n".join(summary_lines)
     x, g = markets["net_pnl"], markets["gross_pnl"]
     n = len(x)
     sd = x.std(ddof=1)
     t = x.mean() / (sd / np.sqrt(n)) if n > 1 and sd > 0 else float("nan")
     cum = x.cumsum()   # markets are in chronological order, so this is a real drawdown
-    print("\n================ SUMMARY ================")
-    print(f"markets traded      {n}")
-    print(f"gross PnL           {g.sum():+.2f}")
-    print(f"commission          {markets['commission'].sum():.2f}  (rate {commission:.0%})")
-    print(f"net PnL             {x.sum():+.2f}")
-    print(f"mean / median       {x.mean():+.4f} / {x.median():+.4f} per market")
-    print(f"std dev             {sd:.4f} per market")
-    print(f"t-stat (mean = 0)   {t:+.2f}")
+    log("\n================ SUMMARY ================")
+    log(f"markets traded      {n}")
+    log(f"gross PnL           {g.sum():+.2f}")
+    log(f"commission          {markets['commission'].sum():.2f}  (rate {commission:.0%})")
+    log(f"net PnL             {x.sum():+.2f}")
+    log(f"mean / median       {x.mean():+.4f} / {x.median():+.4f} per market")
+    log(f"std dev             {sd:.4f} per market")
+    log(f"t-stat (mean = 0)   {t:+.2f}")
     try:
         from scipy import stats
-        print(f"p-value (t-test)    {stats.ttest_1samp(x, 0).pvalue:.4g}")
+        log(f"p-value (t-test)    {stats.ttest_1samp(x, 0).pvalue:.4g}")
         nz = x[x != 0]
         if len(nz) > 10:
-            print(f"Wilcoxon p          {stats.wilcoxon(nz).pvalue:.4g}")
+            log(f"Wilcoxon p          {stats.wilcoxon(nz).pvalue:.4g}")
     except ImportError:
         pass
-    print(f"markets profitable  {(x > 0).mean():.0%}")
-    print(f"worst / best market {x.min():+.2f} / {x.max():+.2f}")
-    print(f"max drawdown        {(cum.cummax() - cum).max():.2f}")
+    log(f"markets profitable  {(x > 0).mean():.0%}")
+    log(f"worst / best market {x.min():+.2f} / {x.max():+.2f}")
+    log(f"max drawdown        {(cum.cummax() - cum).max():.2f}")
     staked = bets["stake"].sum()
     if staked > 0:
-        print(f"staked              {staked:.2f}   ROI {x.sum() / staked:+.4%}")
+        log(f"staked              {staked:.2f}   ROI {x.sum() / staked:+.4%}")
     if not fills.empty:
         if "tag" in fills:
-            print(f"fills               {len(fills)}  {fills['tag'].value_counts().to_dict()}")
+            log(f"fills               {len(fills)}  {fills['tag'].value_counts().to_dict()}")
         if "q_after" in fills:
-            print(f"max |q|             {fills['q_after'].abs().max():.2f}")
-    print("=========================================")
+            log(f"max |q|             {fills['q_after'].abs().max():.2f}")
+    log("=========================================")
+    return "\n".join(summary_lines)
 
 
 # ---------------------------------------------------------------------------
@@ -392,8 +399,9 @@ def main() -> None:
         "workers": workers, "started": started.isoformat(timespec="seconds"),
     }, indent=2, default=str))
 
-    summarise(None, strategy_cls(**params), args.commission, bets=bets_df, markets=markets_df, fills=fills_df)
-    print(f"Saved bets, markets, fills, inventory and run_config to {out}")
+    summary_text = summarise(None, strategy_cls(**params), args.commission, bets=bets_df, markets=markets_df, fills=fills_df)
+    (out / "summary.txt").write_text(summary_text + "\n", encoding="utf-8")
+    print(f"Saved bets, markets, fills, inventory, run_config and summary.txt to {out}")
 
 
 if __name__ == "__main__":
