@@ -24,6 +24,9 @@ Optional:
     --latency     order latency in seconds                                           default: 0.2
     --out         folder for the CSVs              default: research/results/<class name>
     --print-every print a progress line every this many files                        default: 25
+    --window      only replay the last this many seconds before the scheduled off    default: 400
+                  (must be longer than the strategy's start time; 0 = replay everything)
+    --workers     worker processes (0 = all cores, 1 = one process with live progress) default: 0
 
 Outputs (in --out): bets.csv, markets.csv, fills.csv, inventory.csv and run_config.json
 (the exact settings used, so every result can be reproduced).
@@ -42,7 +45,7 @@ import sys
 import time
 from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
-from functools import partial
+from functools import lru_cache, partial
 from pathlib import Path
 from typing import Iterator
 
@@ -84,6 +87,9 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--print-every", type=int, default=25)
     p.add_argument("--workers", type=int, default=0,
                    help="number of worker processes to use (0 = all cores, 1 = disable parallelism)")
+    p.add_argument("--window", type=float, default=400.0,
+                   help="seconds before the scheduled off to replay (0 = everything); must exceed the "
+                        "strategy's start time")
     return p.parse_args()
 
 
@@ -101,6 +107,7 @@ def parse_params(items: list[str]) -> dict:
     return params
 
 
+@lru_cache(maxsize=None)
 def load_strategy_class(strategy: str, class_name: str):
     """Import `class_name` from a file path (strategies/asmodel.py) or a module (strategies.asmodel)."""
     if strategy.endswith(".py"):
@@ -121,6 +128,18 @@ def load_strategy_class(strategy: str, class_name: str):
     return getattr(module, class_name)
 
 
+def trim_to_window(df: pd.DataFrame, window: float) -> pd.DataFrame:
+    """Drop updates more than `window` seconds before the scheduled off. Nothing a strategy does
+    before its start time is affected, but the market is much quicker to replay. Runners removed
+    earlier are still marked removed in the rows that remain, so settlement is unchanged."""
+    if not window or window <= 0 or df.empty:
+        return df
+    # Earliest scheduled time: if a race is put back, the strategy may already have started quoting
+    # against the original time, so keep everything from `window` seconds before that
+    cutoff = df["market_time"].min() - pd.Timedelta(seconds=window)
+    return df[df["publish_time"] >= cutoff]
+
+
 class _SingleReplaySource:
     """Minimal MarketSource for a single replay so one file can be evaluated in a worker process."""
 
@@ -133,14 +152,20 @@ class _SingleReplaySource:
 
 def _run_market_file(path: str, strategy_ref: str, class_name: str, params: dict,
                      commission: float, latency: float,
-                     race_no_lookup: dict[str, int]) -> dict:
+                     race_no_lookup: dict[str, int], window: float = 0.0) -> dict:
     """Backtest one parquet file in a separate process and return aggregated results."""
+    empty = {"bets": [], "markets": [], "fills": [], "inventory": [], "files_done": 0, "start": None}
+    if read_market_type(path) != MarketType.WIN.value:
+        return empty   # WIN markets only (same as the single-process path)
     strategy_cls = load_strategy_class(strategy_ref, class_name)
     strategy = strategy_cls(**params)
+    df = trim_to_window(load_stream(path), window)
+    if df.empty:
+        return empty
     replay = StreamMarketSource(pattern=path, race_no_lookup=race_no_lookup,
-                               market_type_filter={MarketType.WIN})._build_replay(load_stream(path))
+                               market_type_filter={MarketType.WIN})._build_replay(df)
     if replay is None:
-        return {"bets": [], "markets": [], "fills": [], "inventory": [], "files_done": 0}
+        return empty
 
     ledger = Ledger(commission_rate=commission)
     engine = Engine(_SingleReplaySource(replay), strategy,
@@ -154,6 +179,7 @@ def _run_market_file(path: str, strategy_ref: str, class_name: str, params: dict
         "fills": list(getattr(strategy, "fill_log", [])),
         "inventory": list(getattr(strategy, "market_log", [])),
         "files_done": 1,
+        "start": df["market_time"].iloc[-1],   # used to put the results in race order afterwards
     }
 
 
@@ -214,8 +240,10 @@ def sort_chronologically(files: list[str]) -> list[str]:
 class ProgressSource(StreamMarketSource):
     """StreamMarketSource over a fixed, ordered file list that prints progress as it goes."""
 
-    def __init__(self, files: list[str], *args, ledger: Ledger, strategy, print_every: int, **kwargs):
+    def __init__(self, files: list[str], *args, ledger: Ledger, strategy, print_every: int,
+                 window: float = 0.0, **kwargs):
         super().__init__(*args, **kwargs)
+        self.window = window
         self.files = files
         self.ledger = ledger
         self.strategy = strategy
@@ -230,7 +258,8 @@ class ProgressSource(StreamMarketSource):
         for f in self.files:
             self.done += 1
             if self.market_type_filter is None or read_market_type(f) in self.market_type_filter:
-                replay = self._build_replay(load_stream(f))
+                df = trim_to_window(load_stream(f), self.window)
+                replay = self._build_replay(df) if not df.empty else None
                 if replay is not None:
                     self.races += 1
                     yield replay
@@ -328,15 +357,19 @@ def main() -> None:
     files = find_files(args.data)
     if not files:
         sys.exit(f"No .parquet files found for {args.data} under {PROCESSED}")
-    files = sort_chronologically(files)
+    workers = _workers_for(args)
+    if workers == 1 or len(files) == 1:
+        files = sort_chronologically(files)   # parallel runs sort their results afterwards instead
+    else:
+        files.sort(key=_natural_key)
 
     lookup_path = PROCESSED / "race_no_lookup.json"
     race_no_lookup = json.loads(lookup_path.read_text()) if lookup_path.exists() else {}
 
     print(f"Strategy  {args.class_name} from {args.strategy}  {params or ''}")
-    print(f"Data      {' '.join(args.data)}   commission {args.commission:.0%}   latency {args.latency}s")
+    window_note = f"   window {args.window:g}s before the off" if args.window else "   full market replayed"
+    print(f"Data      {' '.join(args.data)}   commission {args.commission:.0%}   latency {args.latency}s{window_note}")
 
-    workers = _workers_for(args)
     started = datetime.now()
 
     if workers == 1 or len(files) == 1:
@@ -344,7 +377,7 @@ def main() -> None:
         ledger = Ledger(commission_rate=args.commission)
         source = ProgressSource(files, pattern=str(PROCESSED), race_no_lookup=race_no_lookup,
                                 market_type_filter={MarketType.WIN}, ledger=ledger, strategy=strategy,
-                                print_every=args.print_every)
+                                print_every=args.print_every, window=args.window)
         engine = Engine(source, strategy, QueueExecutionModel(latency=args.latency, ladder_depth=3),
                         ledger, FlatStake(1.0), starting_bankroll=1000.0)
 
@@ -364,7 +397,7 @@ def main() -> None:
         print(f"Parallel mode: {workers} workers across {len(files)} files")
         task = partial(_run_market_file, strategy_ref=args.strategy, class_name=args.class_name,
                        params=params, commission=args.commission, latency=args.latency,
-                       race_no_lookup=race_no_lookup)
+                       race_no_lookup=race_no_lookup, window=args.window)
         results = []
         with ProcessPoolExecutor(max_workers=workers) as pool:
             for idx, result in enumerate(pool.map(task, files, chunksize=max(1, len(files) // (workers * 4))), 1):
@@ -372,6 +405,8 @@ def main() -> None:
                 if idx % 10 == 0 or idx == len(files):
                     print(f"[{idx:>6}/{len(files)}] files processed", flush=True)
 
+        # Put races in order of scheduled start, so cumulative PnL and drawdown are chronological
+        results.sort(key=lambda r: (r["start"] is None, r["start"] if r["start"] is not None else 0))
         bets_frames = [pd.DataFrame(r["bets"]) for r in results if r["bets"]]
         markets_frames = [pd.DataFrame(r["markets"]) for r in results if r["markets"]]
         fills_frames = [pd.DataFrame(r["fills"]) for r in results if r["fills"]]
@@ -396,7 +431,7 @@ def main() -> None:
         "strategy": args.strategy, "class": args.class_name, "params": params,
         "data": args.data, "files": len(files), "files_done": files_done,
         "finished": finished, "commission": args.commission, "latency": args.latency,
-        "workers": workers, "started": started.isoformat(timespec="seconds"),
+        "workers": workers, "window": args.window, "started": started.isoformat(timespec="seconds"),
     }, indent=2, default=str))
 
     summary_text = summarise(None, strategy_cls(**params), args.commission, bets=bets_df, markets=markets_df, fills=fills_df)

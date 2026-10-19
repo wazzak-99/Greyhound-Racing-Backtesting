@@ -9,6 +9,11 @@ part-way, just run it again: markets that already have a file are skipped.
 
 Run from the project root:
     python scripts/build_dataset.py
+    python scripts/build_dataset.py --source data/raw/market_stream/2025_05_ProAUSGreyhounds/PRO/2025 --pattern "MAY/*/*/*.bz2"
+
+--source and --pattern override SOURCE_ROOT and PATTERN below, so several months can be built
+one after another without editing the file. race_no_lookup.json is merged with what is already
+there, so building one month never wipes another month's race numbers.
 
 Input  (raw):       data/raw/market_stream/<...>/PRO/<year>/<month>/<day>/<event_id>/<market_id>.bz2
 Output (processed): data/processed/market_stream/<month>/<day>/<event_id>/<market_id>.parquet
@@ -16,6 +21,7 @@ Output (processed): data/processed/market_stream/<month>/<day>/<event_id>/<marke
 """
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import re
@@ -37,13 +43,13 @@ from data.streamloaders import ALL_COLUMNS, BetfairStreamLoader, race_key  # noq
 # ---------------------------------------------------------------------------
 
 # The folder that directly contains the month folders (Oct/, Nov/, ...)
-SOURCE_ROOT = ROOT / "data/raw/market_stream/2025_01_ProAUSGreyhounds/PRO/2025"
+SOURCE_ROOT = ROOT / "data/raw/market_stream/2025_04_ProAUSGreyhounds/PRO/2025"
 DEST_ROOT = ROOT / "data/processed/market_stream"
 MARKET_TYPES = ["WIN"]
 
 # Which raw files to process, relative to SOURCE_ROOT: <month>/<day>/<event_id>/<market_id>.bz2
 # Use "Oct/1/*/*.bz2" to test on a single day first.
-PATTERN = "JAN/*/*/*.bz2"
+PATTERN = "APR/*/*/*.bz2"
 
 # Number of files processed at once (default: one per CPU core).
 # Lower it if your computer is too slow to use while this runs.
@@ -63,8 +69,10 @@ RACE_NO_RE = re.compile(r"R(\d+)")  # WIN market names look like "R1 330m Mdn"
 _loader: Optional[BetfairStreamLoader] = None
 
 
-def _init_worker() -> None:
-    global _loader
+def _init_worker(source_root: str) -> None:
+    # Worker processes start fresh on Windows, so the chosen source folder is passed in here
+    global _loader, SOURCE_ROOT
+    SOURCE_ROOT = Path(source_root)
     _loader = BetfairStreamLoader(columns=ALL_COLUMNS, market_type_filter=MARKET_TYPES)
 
 
@@ -106,17 +114,35 @@ def process_file(src: Path) -> Optional[tuple[str, str, str, Optional[int]]]:
 # Main
 # ---------------------------------------------------------------------------
 
-def main() -> None:
-    files = sorted(SOURCE_ROOT.glob(PATTERN))
-    if not files:
-        raise FileNotFoundError(f"No .bz2 files matching {PATTERN} under {SOURCE_ROOT}")
-    print(f"Found {len(files):,} raw market files. Using {WORKERS} workers.")
+def parse_args() -> argparse.Namespace:
+    p = argparse.ArgumentParser(description="Convert raw Betfair stream files to Parquet.")
+    p.add_argument("--source", default=None,
+                   help="folder that directly contains the month folders (default: SOURCE_ROOT in this file)")
+    p.add_argument("--pattern", default=None,
+                   help='files to process, relative to --source, e.g. "MAY/*/*/*.bz2" (default: PATTERN)')
+    return p.parse_args()
 
-    race_no_lookup: dict[str, int] = {}
+
+def main() -> None:
+    global SOURCE_ROOT
+    args = parse_args()
+    if args.source:
+        SOURCE_ROOT = Path(args.source) if Path(args.source).is_absolute() else ROOT / args.source
+    pattern = args.pattern or PATTERN
+
+    files = sorted(SOURCE_ROOT.glob(pattern))
+    if not files:
+        raise FileNotFoundError(f"No .bz2 files matching {pattern} under {SOURCE_ROOT}")
+    print(f"Found {len(files):,} raw market files in {SOURCE_ROOT} ({pattern}). Using {WORKERS} workers.")
+
+    # Start from the existing lookup so other months' race numbers are kept
+    lookup_path = DEST_ROOT / "race_no_lookup.json"
+    race_no_lookup: dict[str, int] = json.loads(lookup_path.read_text()) if lookup_path.exists() else {}
     non_win: list[tuple[str, str]] = []
     start = time.time()
 
-    with ProcessPoolExecutor(max_workers=WORKERS, initializer=_init_worker) as pool:
+    with ProcessPoolExecutor(max_workers=WORKERS, initializer=_init_worker,
+                             initargs=(str(SOURCE_ROOT),)) as pool:
         for i, result in enumerate(pool.map(process_file, files, chunksize=8), 1):
             if result is not None:
                 name, key, market_type, race_no = result
@@ -131,7 +157,7 @@ def main() -> None:
                 print(f"  {i:,} / {len(files):,}  |  {elapsed / 60:.0f} min elapsed, ~{remaining / 60:.0f} min left")
 
     DEST_ROOT.mkdir(parents=True, exist_ok=True)
-    with open(DEST_ROOT / "race_no_lookup.json", "w") as fp:
+    with open(lookup_path, "w") as fp:
         json.dump(race_no_lookup, fp)
 
     unmatched = [(name, key) for name, key in non_win if key not in race_no_lookup]

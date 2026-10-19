@@ -33,16 +33,12 @@ def _optional(series: pd.Series) -> list:
 
 def _ladders(df: pd.DataFrame, cols: list[tuple[str, str]]) -> list[list[tuple[float, float]]]:
     """Returns (price, size) ladder for every row, best first, stopping at the first empty level."""
-    levels = [(df[p].tolist(), df[z].tolist(), df[p].isna().to_numpy()) for p, z in cols]
-    out = []
-    for i in range(len(df)):
-        ladder = []
-        for prices, sizes, missing in levels:
-            if missing[i]:
-                break
-            ladder.append((prices[i], sizes[i]))
-        out.append(ladder)
-    return out
+    if not cols:
+        return [[] for _ in range(len(df))]
+    prices = df[[p for p, _ in cols]].to_numpy(dtype=float)
+    sizes = df[[z for _, z in cols]].to_numpy(dtype=float)
+    depth = np.cumprod(~np.isnan(prices), axis=1).sum(axis=1)    # levels before the first empty one
+    return [list(zip(p[:n], z[:n])) for p, z, n in zip(prices.tolist(), sizes.tolist(), depth.tolist())]
 
 
 @dataclass
