@@ -1,0 +1,474 @@
+Strategy  ASGMStrategy from strategies/asgmv2.py  {'gamma': 0.75, 'quote_units': 10, 'q_max': 50}
+Data      Jan   commission 4%   latency 0.2s   window 400s before the off
+Parallel mode: 12 workers across 4072 files
+[    10/4072] files processed
+WARNING: No winner found for market 1.237722665! Skipping...
+[    20/4072] files processed
+[    30/4072] files processed
+[    40/4072] files processed
+[    50/4072] files processed
+[    60/4072] files processed
+[    70/4072] files processed
+[    80/4072] files processed
+[    90/4072] files processed
+WARNING: No winner found for market 1.237725882! Skipping...
+WARNING: No winner found for market 1.237725877! Skipping...
+WARNING: No winner found for market 1.237725872! Skipping...
+[   100/4072] files processed
+[   110/4072] files processed
+[   120/4072] files processed
+[   130/4072] files processed
+[   140/4072] files processed
+[   150/4072] files processed
+[   160/4072] files processed
+[   170/4072] files processed
+[   180/4072] files processed
+[   190/4072] files processed
+[   200/4072] files processed
+[   210/4072] files processed
+[   220/4072] files processed
+[   230/4072] files processed
+[   240/4072] files processed
+[   250/4072] files processed
+[   260/4072] files processed
+[   270/4072] files processed
+[   280/4072] files processed
+[   290/4072] files processed
+[   300/4072] files processed
+[   310/4072] files processed
+[   320/4072] files processed
+[   330/4072] files processed
+[   340/4072] files processed
+[   350/4072] files processed
+[   360/4072] files processed
+[   370/4072] files processed
+[   380/4072] files processed
+[   390/4072] files processed
+[   400/4072] files processed
+WARNING: No winner found for market 1.237773510! Skipping...
+[   410/4072] files processed
+[   420/4072] files processed
+[   430/4072] files processed
+[   440/4072] files processed
+[   450/4072] files processed
+[   460/4072] files processed
+[   470/4072] files processed
+[   480/4072] files processed
+[   490/4072] files processed
+[   500/4072] files processed
+[   510/4072] files processed
+[   520/4072] files processed
+[   530/4072] files processed
+[   540/4072] files processed
+[   550/4072] files processed
+[   560/4072] files processed
+[   570/4072] files processed
+[   580/4072] files processed
+[   590/4072] files processed
+[   600/4072] files processed
+[   610/4072] files processed
+WARNING: No winner found for market 1.237883403! Skipping...
+WARNING: No winner found for market 1.237883423! Skipping...
+[   620/4072] files processed
+[   630/4072] files processed
+[   640/4072] files processed
+[   650/4072] files processed
+[   660/4072] files processed
+[   670/4072] files processed
+[   680/4072] files processed
+[   690/4072] files processed
+[   700/4072] files processed
+[   710/4072] files processed
+[   720/4072] files processed
+[   730/4072] files processed
+[   740/4072] files processed
+[   750/4072] files processed
+[   760/4072] files processed
+[   770/4072] files processed
+[   780/4072] files processed
+[   790/4072] files processed
+[   800/4072] files processed
+[   810/4072] files processed
+[   820/4072] files processed
+[   830/4072] files processed
+[   840/4072] files processed
+[   850/4072] files processed
+[   860/4072] files processed
+[   870/4072] files processed
+[   880/4072] files processed
+[   890/4072] files processed
+[   900/4072] files processed
+[   910/4072] files processed
+[   920/4072] files processed
+[   930/4072] files processed
+[   940/4072] files processed
+[   950/4072] files processed
+[   960/4072] files processed
+[   970/4072] files processed
+[   980/4072] files processed
+[   990/4072] files processed
+[  1000/4072] files processed
+[  1010/4072] files processed
+[  1020/4072] files processed
+[  1030/4072] files processed
+[  1040/4072] files processed
+[  1050/4072] files processed
+[  1060/4072] files processed
+[  1070/4072] files processed
+[  1080/4072] files processed
+[  1090/4072] files processed
+[  1100/4072] files processed
+[  1110/4072] files processed
+[  1120/4072] files processed
+[  1130/4072] files processed
+[  1140/4072] files processed
+[  1150/4072] files processed
+[  1160/4072] files processed
+[  1170/4072] files processed
+[  1180/4072] files processed
+[  1190/4072] files processed
+[  1200/4072] files processed
+[  1210/4072] files processed
+[  1220/4072] files processed
+[  1230/4072] files processed
+[  1240/4072] files processed
+[  1250/4072] files processed
+[  1260/4072] files processed
+[  1270/4072] files processed
+[  1280/4072] files processed
+[  1290/4072] files processed
+[  1300/4072] files processed
+[  1310/4072] files processed
+[  1320/4072] files processed
+[  1330/4072] files processed
+[  1340/4072] files processed
+WARNING: No winner found for market 1.238066532! Skipping...
+[  1350/4072] files processed
+[  1360/4072] files processed
+[  1370/4072] files processed
+[  1380/4072] files processed
+[  1390/4072] files processed
+[  1400/4072] files processed
+[  1410/4072] files processed
+[  1420/4072] files processed
+WARNING: No winner found for market 1.238112162! Skipping...
+[  1430/4072] files processed
+[  1440/4072] files processed
+[  1450/4072] files processed
+[  1460/4072] files processed
+WARNING: No winner found for market 1.238117358! Skipping...
+WARNING: No winner found for market 1.238117353! Skipping...
+WARNING: No winner found for market 1.238117363! Skipping...
+WARNING: No winner found for market 1.238117348! Skipping...
+[  1470/4072] files processed
+[  1480/4072] files processed
+WARNING: No winner found for market 1.238117343! Skipping...
+[  1490/4072] files processed
+[  1500/4072] files processed
+[  1510/4072] files processed
+WARNING: No winner found for market 1.238118674! Skipping...
+[  1520/4072] files processed
+[  1530/4072] files processed
+[  1540/4072] files processed
+[  1550/4072] files processed
+[  1560/4072] files processed
+[  1570/4072] files processed
+[  1580/4072] files processed
+[  1590/4072] files processed
+[  1600/4072] files processed
+[  1610/4072] files processed
+[  1620/4072] files processed
+[  1630/4072] files processed
+[  1640/4072] files processed
+[  1650/4072] files processed
+[  1660/4072] files processed
+[  1670/4072] files processed
+[  1680/4072] files processed
+[  1690/4072] files processed
+[  1700/4072] files processed
+[  1710/4072] files processed
+[  1720/4072] files processed
+[  1730/4072] files processed
+[  1740/4072] files processed
+[  1750/4072] files processed
+[  1760/4072] files processed
+[  1770/4072] files processed
+[  1780/4072] files processed
+[  1790/4072] files processed
+[  1800/4072] files processed
+[  1810/4072] files processed
+[  1820/4072] files processed
+[  1830/4072] files processed
+[  1840/4072] files processed
+[  1850/4072] files processed
+[  1860/4072] files processed
+[  1870/4072] files processed
+WARNING: No winner found for market 1.238239867! Skipping...
+[  1880/4072] files processed
+WARNING: No winner found for market 1.238239872! Skipping...
+WARNING: No winner found for market 1.238239862! Skipping...
+WARNING: No winner found for market 1.238239877! Skipping...
+WARNING: No winner found for market 1.238239857! Skipping...
+[  1890/4072] files processed
+[  1900/4072] files processed
+WARNING: No winner found for market 1.238240036! Skipping...
+WARNING: No winner found for market 1.238240031! Skipping...
+WARNING: No winner found for market 1.238240026! Skipping...
+[  1910/4072] files processed
+WARNING: No winner found for market 1.238240061! Skipping...
+[  1920/4072] files processed
+WARNING: No winner found for market 1.238240056! Skipping...
+WARNING: No winner found for market 1.238240021! Skipping...
+WARNING: No winner found for market 1.238240265! Skipping...
+WARNING: No winner found for market 1.238240270! Skipping...
+WARNING: No winner found for market 1.238240275! Skipping...
+[  1930/4072] files processed
+[  1940/4072] files processed
+WARNING: No winner found for market 1.238240260! Skipping...
+WARNING: No winner found for market 1.238240255! Skipping...
+[  1950/4072] files processed
+[  1960/4072] files processed
+[  1970/4072] files processed
+[  1980/4072] files processed
+[  1990/4072] files processed
+[  2000/4072] files processed
+[  2010/4072] files processed
+[  2020/4072] files processed
+WARNING: No winner found for market 1.238276298! Skipping...
+WARNING: No winner found for market 1.238276293! Skipping...
+[  2030/4072] files processed
+WARNING: No winner found for market 1.238276288! Skipping...
+[  2040/4072] files processed
+[  2050/4072] files processed
+[  2060/4072] files processed
+[  2070/4072] files processed
+[  2080/4072] files processed
+[  2090/4072] files processed
+WARNING: No winner found for market 1.238280798! Skipping...
+WARNING: No winner found for market 1.238280226! Skipping...
+[  2100/4072] files processed
+[  2110/4072] files processed
+[  2120/4072] files processed
+[  2130/4072] files processed
+[  2140/4072] files processed
+[  2150/4072] files processed
+[  2160/4072] files processed
+[  2170/4072] files processed
+[  2180/4072] files processed
+[  2190/4072] files processed
+[  2200/4072] files processed
+[  2210/4072] files processed
+[  2220/4072] files processed
+[  2230/4072] files processed
+[  2240/4072] files processed
+[  2250/4072] files processed
+[  2260/4072] files processed
+[  2270/4072] files processed
+[  2280/4072] files processed
+[  2290/4072] files processed
+[  2300/4072] files processed
+[  2310/4072] files processed
+[  2320/4072] files processed
+[  2330/4072] files processed
+[  2340/4072] files processed
+[  2350/4072] files processed
+[  2360/4072] files processed
+[  2370/4072] files processed
+[  2380/4072] files processed
+[  2390/4072] files processed
+WARNING: No winner found for market 1.238408322! Skipping...
+WARNING: No winner found for market 1.238408313! Skipping...
+[  2400/4072] files processed
+WARNING: No winner found for market 1.238408278! Skipping...
+[  2410/4072] files processed
+[  2420/4072] files processed
+[  2430/4072] files processed
+[  2440/4072] files processed
+[  2450/4072] files processed
+[  2460/4072] files processed
+[  2470/4072] files processed
+[  2480/4072] files processed
+[  2490/4072] files processed
+[  2500/4072] files processed
+[  2510/4072] files processed
+WARNING: No winner found for market 1.238441168! Skipping...
+[  2520/4072] files processed
+[  2530/4072] files processed
+[  2540/4072] files processed
+[  2550/4072] files processed
+[  2560/4072] files processed
+[  2570/4072] files processed
+[  2580/4072] files processed
+[  2590/4072] files processed
+[  2600/4072] files processed
+[  2610/4072] files processed
+[  2620/4072] files processed
+[  2630/4072] files processed
+[  2640/4072] files processed
+[  2650/4072] files processed
+[  2660/4072] files processed
+[  2670/4072] files processed
+[  2680/4072] files processed
+[  2690/4072] files processed
+[  2700/4072] files processed
+[  2710/4072] files processed
+[  2720/4072] files processed
+[  2730/4072] files processed
+[  2740/4072] files processed
+[  2750/4072] files processed
+[  2760/4072] files processed
+[  2770/4072] files processed
+[  2780/4072] files processed
+WARNING: No winner found for market 1.238523773! Skipping...
+WARNING: No winner found for market 1.238523768! Skipping...
+[  2790/4072] files processed
+[  2800/4072] files processed
+[  2810/4072] files processed
+[  2820/4072] files processed
+[  2830/4072] files processed
+[  2840/4072] files processed
+[  2850/4072] files processed
+[  2860/4072] files processed
+[  2870/4072] files processed
+[  2880/4072] files processed
+[  2890/4072] files processed
+[  2900/4072] files processed
+[  2910/4072] files processed
+[  2920/4072] files processed
+[  2930/4072] files processed
+[  2940/4072] files processed
+[  2950/4072] files processed
+[  2960/4072] files processed
+[  2970/4072] files processed
+[  2980/4072] files processed
+[  2990/4072] files processed
+[  3000/4072] files processed
+[  3010/4072] files processed
+[  3020/4072] files processed
+[  3030/4072] files processed
+[  3040/4072] files processed
+[  3050/4072] files processed
+[  3060/4072] files processed
+[  3070/4072] files processed
+[  3080/4072] files processed
+[  3090/4072] files processed
+[  3100/4072] files processed
+[  3110/4072] files processed
+[  3120/4072] files processed
+[  3130/4072] files processed
+[  3140/4072] files processed
+[  3150/4072] files processed
+[  3160/4072] files processed
+[  3170/4072] files processed
+[  3180/4072] files processed
+[  3190/4072] files processed
+[  3200/4072] files processed
+[  3210/4072] files processed
+[  3220/4072] files processed
+[  3230/4072] files processed
+[  3240/4072] files processed
+[  3250/4072] files processed
+[  3260/4072] files processed
+[  3270/4072] files processed
+[  3280/4072] files processed
+[  3290/4072] files processed
+[  3300/4072] files processed
+WARNING: No winner found for market 1.238696672! Skipping...
+[  3310/4072] files processed
+[  3320/4072] files processed
+[  3330/4072] files processed
+[  3340/4072] files processed
+[  3350/4072] files processed
+[  3360/4072] files processed
+[  3370/4072] files processed
+[  3380/4072] files processed
+[  3390/4072] files processed
+[  3400/4072] files processed
+[  3410/4072] files processed
+[  3420/4072] files processed
+[  3430/4072] files processed
+[  3440/4072] files processed
+[  3450/4072] files processed
+[  3460/4072] files processed
+[  3470/4072] files processed
+[  3480/4072] files processed
+[  3490/4072] files processed
+[  3500/4072] files processed
+[  3510/4072] files processed
+[  3520/4072] files processed
+[  3530/4072] files processed
+[  3540/4072] files processed
+[  3550/4072] files processed
+[  3560/4072] files processed
+[  3570/4072] files processed
+[  3580/4072] files processed
+[  3590/4072] files processed
+[  3600/4072] files processed
+[  3610/4072] files processed
+[  3620/4072] files processed
+[  3630/4072] files processed
+[  3640/4072] files processed
+[  3650/4072] files processed
+[  3660/4072] files processed
+[  3670/4072] files processed
+[  3680/4072] files processed
+[  3690/4072] files processed
+[  3700/4072] files processed
+[  3710/4072] files processed
+[  3720/4072] files processed
+[  3730/4072] files processed
+[  3740/4072] files processed
+[  3750/4072] files processed
+[  3760/4072] files processed
+[  3770/4072] files processed
+[  3780/4072] files processed
+[  3790/4072] files processed
+[  3800/4072] files processed
+[  3810/4072] files processed
+[  3820/4072] files processed
+[  3830/4072] files processed
+[  3840/4072] files processed
+[  3850/4072] files processed
+[  3860/4072] files processed
+[  3870/4072] files processed
+[  3880/4072] files processed
+[  3890/4072] files processed
+[  3900/4072] files processed
+[  3910/4072] files processed
+[  3920/4072] files processed
+[  3930/4072] files processed
+[  3940/4072] files processed
+[  3950/4072] files processed
+[  3960/4072] files processed
+[  3970/4072] files processed
+WARNING: No winner found for market 1.238909504! Skipping...
+[  3980/4072] files processed
+[  3990/4072] files processed
+[  4000/4072] files processed
+[  4010/4072] files processed
+[  4020/4072] files processed
+[  4030/4072] files processed
+[  4040/4072] files processed
+[  4050/4072] files processed
+[  4060/4072] files processed
+[  4070/4072] files processed
+[  4072/4072] files processed
+
+================ SUMMARY ================
+markets traded      3118
+gross PnL           +320.91
+commission          28.19  (rate 4%)
+net PnL             +292.72
+mean / median       +0.0939 / +0.0744 per market
+std dev             0.5982 per market
+t-stat (mean = 0)   +8.76
+p-value (t-test)    3.053e-18
+Wilcoxon p          1.375e-48
+markets profitable  60%
+worst / best market -11.58 / +9.73
+max drawdown        18.60
+staked              45720.22   ROI +0.6402%
+fills               19044  {'quote': 14466, 'greenup': 4578}
+max |q|             97.94
+=========================================
+Saved bets, markets, fills, inventory, run_config and summary.txt to c:\Users\Warren\Documents\GitHub\Greyhound-Racing-Backtesting\research\results\gamma_grid\gamma_0.75
