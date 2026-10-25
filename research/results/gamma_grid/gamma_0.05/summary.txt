@@ -1,0 +1,18 @@
+
+================ SUMMARY ================
+markets traded      3565
+gross PnL           +483.73
+commission          47.09  (rate 4%)
+net PnL             +436.63
+mean / median       +0.1225 / +0.0929 per market
+std dev             0.8790 per market
+t-stat (mean = 0)   +8.32
+p-value (t-test)    1.24e-16
+Wilcoxon p          9.02e-39
+markets profitable  59%
+worst / best market -13.89 / +13.64
+max drawdown        21.80
+staked              75017.73   ROI +0.5820%
+fills               28011  {'quote': 21346, 'greenup': 6665}
+max |q|             98.22
+=========================================

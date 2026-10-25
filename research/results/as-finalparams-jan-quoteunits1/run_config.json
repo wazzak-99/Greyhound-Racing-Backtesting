@@ -1,0 +1,16 @@
+{
+  "strategy": "strategies/asmodel.py",
+  "class": "ASStrategy",
+  "params": {},
+  "data": [
+    "Jan"
+  ],
+  "files": 4072,
+  "files_done": 3944,
+  "finished": true,
+  "commission": 0.04,
+  "latency": 0.2,
+  "workers": 12,
+  "window": 400.0,
+  "started": "2026-10-24T16:23:50"
+}

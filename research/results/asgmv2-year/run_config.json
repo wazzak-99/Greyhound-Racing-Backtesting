@@ -1,0 +1,27 @@
+{
+  "strategy": "strategies/asgmv2.py",
+  "class": "ASGMStrategy",
+  "params": {},
+  "data": [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec"
+  ],
+  "files": 47423,
+  "files_done": 46518,
+  "finished": true,
+  "commission": 0.04,
+  "latency": 0.2,
+  "workers": 12,
+  "window": 400.0,
+  "started": "2026-10-25T00:16:56"
+}

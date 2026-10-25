@@ -1,0 +1,16 @@
+{
+  "strategy": "strategies/asgmv1.py",
+  "class": "ASGMStrategy",
+  "params": {},
+  "data": [
+    "Jan"
+  ],
+  "files": 4072,
+  "files_done": 3944,
+  "finished": true,
+  "commission": 0.04,
+  "latency": 0.2,
+  "workers": 12,
+  "window": 400.0,
+  "started": "2026-10-24T19:18:30"
+}

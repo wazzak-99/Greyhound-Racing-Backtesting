@@ -44,6 +44,7 @@ import re
 import sys
 import time
 from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import as_completed 
 from datetime import datetime
 from functools import lru_cache, partial
 from pathlib import Path
@@ -400,8 +401,12 @@ def main() -> None:
                        race_no_lookup=race_no_lookup, window=args.window)
         results = []
         with ProcessPoolExecutor(max_workers=workers) as pool:
-            for idx, result in enumerate(pool.map(task, files, chunksize=max(1, len(files) // (workers * 4))), 1):
-                results.append(result)
+            futures = {pool.submit(task, f): f for f in files}
+            for idx, fut in enumerate(as_completed(futures), 1):
+                try:
+                    results.append(fut.result())
+                except Exception as e:
+                    print(f"ERROR in {futures[fut]}: {e!r}  (skipped)", flush=True)
                 if idx % 10 == 0 or idx == len(files):
                     print(f"[{idx:>6}/{len(files)}] files processed", flush=True)
 

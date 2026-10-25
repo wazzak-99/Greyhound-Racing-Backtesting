@@ -59,9 +59,10 @@ def _log_odds(p: float) -> float:
 # Model parameters
 # ---------------------------------------------------------------------------
 
-K_BACK_X = [(60, 40.0), (120, 29.0), (300, 18.0), (INF, 6.0)]
-K_LAY_X = [(60, 35.0), (120, 25.0), (300, 15.0), (INF, 5.0)]
-SIGMA2_X = [(60, 2.3e-4), (120, 2.7e-4), (300, 2.0e-4), (600, 1.3e-4), (INF, 5e-5)]
+
+K_BACK_X = [(45, 49.4), (60, 39.9), (90, 40.2), (120, 37.5), (180, 33.6), (240, 26.6), (300, 19.0), (INF, 13.0)]
+K_LAY_X  = [(45, 47.5), (60, 43.7), (90, 39.6), (120, 37.8), (180, 31.0), (240, 23.1), (300, 16.5), (INF, 11.0)]
+SIGMA2_X = [(45, 2.14e-04), (60, 2.47e-04), (90, 2.05e-04), (120, 1.69e-04), (180, 1.69e-04), (240, 1.76e-04), (300, 1.82e-04), (INF, 1.40e-04)]
 
 # Type alias for A-S model parameters
 # These can be given as a single value or a sequence of (time, value) tuples
@@ -76,12 +77,32 @@ def _lookup(param: Param, seconds_to_off: float) -> float:
             return float(value)
     return float(param[-1][1])
 
+def _interp(param: Param, seconds_to_off: float, lower_edge: float = 30.0) -> float:
+    """Linear interpolation between bin midpoints; flat beyond the first and last midpoints."""
+    if isinstance(param, (int, float)):
+        return float(param)
+    edges = [lower_edge] + [e for e, _ in param]
+    edges[-1] = 350.0 if edges[-1] == INF else edges[-1]          # quoting window ends at 350 s
+    mids = [(a + b) / 2 for a, b in zip(edges[:-1], edges[1:])]
+    vals = [float(v) for _, v in param]
+    if seconds_to_off <= mids[0]:
+        return vals[0]
+    if seconds_to_off >= mids[-1]:
+        return vals[-1]
+    i = bisect.bisect_right(mids, seconds_to_off) - 1
+    w = (seconds_to_off - mids[i]) / (mids[i + 1] - mids[i])
+    return vals[i] + w * (vals[i + 1] - vals[i])
+
 # Parameters for the adverse selection (G-M) model
 ADVERSE_X = [
-    (60, [(3.0, 0.0166), (4.0, 0.0289), (INF, 0.0215)]),
-    (120, [(3.0, 0.0238), (4.0, 0.0242), (INF, 0.0272)]),
-    (180, [(3.0, 0.0610), (4.0, 0.0549), (INF, 0.0467)]),
-    (INF, [(3.0, 0.0516), (4.0, 0.0583), (INF, 0.0438)]),
+    (45, [(INF, 0.0343)]),
+    (60, [(INF, 0.0311)]),
+    (90, [(INF, 0.0341)]),
+    (120, [(INF, 0.0385)]),
+    (180, [(INF, 0.0413)]),
+    (240, [(INF, 0.0509)]),
+    (300, [(INF, 0.0571)]),
+    (INF, [(INF, 0.0674)]),
 ]
 
 def _lookup_adverse(table, seconds_to_off: float, odds: float):
@@ -107,16 +128,16 @@ def _lookup_adverse(table, seconds_to_off: float, odds: float):
 class ASGMStrategy(Strategy):
     def __init__(
         self,
-        gamma: float = 5.0,                 # risk aversion, per $ of payout
+        gamma: float = 0.5,                 # risk aversion, per $ of payout
         k_back_x: Param = K_BACK_X,         # fill decay of our resting BACKs (bid side), log-odds units
         k_lay_x: Param = K_LAY_X,           # fill decay of our resting LAYs (ask side), log-odds units
         sigma2_x: Param = SIGMA2_X,         # variance of log-odds per second
-        quote_units: float = 1.0,           # payout units per quote ($ won if the dog wins)
-        q_max: float = 5.0,                 # inventory cap, payout units
+        quote_units: float = 10.0,           # payout units per quote ($ won if the dog wins)
+        q_max: float = 50.0,                 # inventory cap, payout units
         start_seconds: float = 350.0,       # start quoting this many seconds before the off
         adverse_x=ADVERSE_X,                # Glosten-Milgrom charge: expected adverse move after a fill (log-odds)
         adverse_scale: float = 1.0,         # multiply ADVERSE_X (1 = charge the full measured move)
-        adverse_keep_reducing: bool = True, # don't charge the side that reduces |q|
+        adverse_keep_reducing: bool = False, # don't charge the side that reduces |q|
         greenup_seconds: float = 30.0,      # T_e: stop quoting and green up this many seconds before the off
         greenup_slippage_ticks: int = 3,    # how many ticks through the best price a green-up may take
         greenup_min_units: float = 0.5,     # ignore |q| below this when greening up
@@ -234,7 +255,7 @@ class ASGMStrategy(Strategy):
 
     def _variance(self, S: float, ttj: float) -> float:
         """V in price units: price risk until we exit at T_e."""
-        sigma2_p = (S * (1 - S)) ** 2 * _lookup(self.sigma2_x, ttj)
+        sigma2_p = (S * (1 - S)) ** 2 * _interp(self.sigma2_x, ttj)
         return sigma2_p * max(ttj - self.greenup_seconds, 0.0)
 
     def _quote_odds(self, r: RunnerState, S: float, ttj: float) -> tuple[Optional[float], Optional[float]]:
@@ -242,13 +263,14 @@ class ASGMStrategy(Strategy):
         g = self.gamma
         q = self.q.get(r.selection_id, 0.0)
         V = self._variance(S, ttj)
-        k_back_p = _lookup(self.k_back_x, ttj) / (S * (1 - S))
-        k_lay_p = _lookup(self.k_lay_x, ttj) / (S * (1 - S))
+        k_back_p = _interp(self.k_back_x, ttj) / (S * (1 - S))
+        k_lay_p = _interp(self.k_lay_x, ttj) / (S * (1 - S))
 
         # Avellaneda-Stoikov reservation price and half-spreads
         reservation = S - q * g * V
-        ask_p = reservation + 0.5 * g * V + math.log1p(g / k_lay_p) / g
-        bid_p = reservation - 0.5 * g * V - math.log1p(g / k_back_p) / g
+        gc = g * self.quote_units
+        ask_p = reservation + 0.5 * gc * V + math.log1p(gc / k_lay_p) / gc
+        bid_p = reservation - 0.5 * gc * V - math.log1p(gc / k_back_p) / gc
 
         # Glosten-Milgrom adverse-selection charge
         adverse = self.adverse_scale * float(_lookup_adverse(self.adverse_x, ttj, 1.0 / S))

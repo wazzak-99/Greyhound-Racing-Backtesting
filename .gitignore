@@ -4,9 +4,6 @@
 /data/processed/*
 !/data/processed/.gitkeep
 
-# Backtest outputs
-/research/results/
-
 # Python / editor
 __pycache__/
 *.pyc
