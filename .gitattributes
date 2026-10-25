@@ -1,2 +1,5 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# LightGBM's model file stores each tree's size in bytes, so Windows line endings break it
+adverse-selection/adverse_model.txt -text
