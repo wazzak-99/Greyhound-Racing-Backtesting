@@ -1,0 +1,32 @@
+{
+  "strategy": "strategies/_final-strategy.py",
+  "class": "ASGMStrategy",
+  "params": {
+    "gamma": 0.5,
+    "greenup_min_units": 0
+  },
+  "data": [
+    "Feb/1",
+    "Feb/2",
+    "Feb/3",
+    "Feb/4",
+    "Feb/5",
+    "Feb/6",
+    "Feb/7",
+    "Feb/8",
+    "Feb/9",
+    "Feb/10",
+    "Feb/11",
+    "Feb/12",
+    "Feb/13",
+    "Feb/14"
+  ],
+  "files": 1738,
+  "files_done": 1669,
+  "finished": true,
+  "commission": 0.04,
+  "latency": 0.2,
+  "workers": 24,
+  "window": 400.0,
+  "started": "2026-10-25T17:09:43"
+}

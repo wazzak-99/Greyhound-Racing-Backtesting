@@ -452,8 +452,8 @@ class ASGMStrategy(Strategy):
         rows, slots = [], []
         for r, S in quotable:
             f = self._features.runner_features(r, ttj, S, favourite=(S == favourite_S))
-            # The model needs our quote's position, but the charge itself moves the quote. As in Part J of the
-            # guide, we describe the A-S quote before any charge.
+            # The model needs our quote's position, but the charge itself moves the quote, so we describe the
+            # A-S quote before any charge.
             bid_odds, ask_odds = self._to_odds(r, *plain[r.selection_id])
             for side, odds in ((Side.BACK, bid_odds), (Side.LAY, ask_odds)):
                 if odds is not None:

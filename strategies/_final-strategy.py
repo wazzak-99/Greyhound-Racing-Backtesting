@@ -78,8 +78,8 @@ def _log_odds(p: float) -> float:
 # ---------------------------------------------------------------------------
 
 
-K_BACK_X = [(45, 49.4), (60, 39.9), (90, 40.2), (120, 37.5), (180, 33.6), (240, 26.6), (300, 19.0), (INF, 13.0)]
-K_LAY_X  = [(45, 47.5), (60, 43.7), (90, 39.6), (120, 37.8), (180, 31.0), (240, 23.1), (300, 16.5), (INF, 11.0)]
+K_BACK_X = [(45, 47.4), (60, 38.1), (90, 38.7), (120, 36.6), (180, 32.9), (240, 27.2), (300, 20.0), (INF, 14.4)]
+K_LAY_X  = [(45, 43.3), (60, 40.3), (90, 37.4), (120, 36.7), (180, 30.5), (240, 23.8), (300, 17.1), (INF, 11.6)]
 SIGMA2_X = [(45, 2.14e-04), (60, 2.47e-04), (90, 2.05e-04), (120, 1.69e-04), (180, 1.69e-04), (240, 1.76e-04), (300, 1.82e-04), (INF, 1.40e-04)]
 
 # Type alias for A-S model parameters
@@ -472,8 +472,8 @@ class ASGMStrategy(Strategy):
         rows, slots = [], []
         for r, S in quotable:
             f = self._features.runner_features(r, ttj, S, favourite=(S == favourite_S))
-            # The model needs our quote's position, but the charge itself moves the quote. As in Part J of the
-            # guide, we describe the A-S quote before any charge, at the price it would be posted at
+            # The model needs our quote's position, but the charge itself moves the quote, so we describe the
+            # A-S quote before any charge, at the price it would be posted at
             # (so with `dime`, no more than one tick in front of the best).
             bid_odds, ask_odds = self._to_odds(r, *plain[r.selection_id])
             for side, odds in ((Side.BACK, bid_odds), (Side.LAY, ask_odds)):
