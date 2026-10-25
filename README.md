@@ -23,12 +23,6 @@ This writes one `.parquet` file per market to `data/processed/market_stream/...`
 
 (We need `race_no_lookup.json` since some race details only appear in WIN market names, so the lookup copies it across to that race's PLACE and MATCH_BET markets).
 
-Tips:
-
-- Test on a single day first by setting `PATTERN = "Oct/1/*/*.bz2"` at the top of `build_dataset.py`. The script prints how long it has left, so you can estimate the full month from there.
-- It uses **every** CPU core by default. Lower `WORKERS` if your computer is too slow to use while it runs.
-- If the run stops part-way, just run it again. Markets that already have a file are skipped (Make sure `SKIP_EXISTING` is set to `True`)
-
 
 ### Columns
 
