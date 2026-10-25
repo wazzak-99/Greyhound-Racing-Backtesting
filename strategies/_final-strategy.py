@@ -288,7 +288,7 @@ def _share(up: float, down: float) -> float:
 class ASGMStrategy(Strategy):
     def __init__(
         self,
-        gamma: float = 0.5,                 # risk aversion, per $ of payout
+        gamma: float = 0.5,                 # risk aversion, per $ of payout (tuned on 1-14 Feb, gamma_grid.ipynb)
         k_back_x: Param = K_BACK_X,         # fill decay of our resting BACKs (bid side), log-odds units
         k_lay_x: Param = K_LAY_X,           # fill decay of our resting LAYs (ask side), log-odds units
         sigma2_x: Param = SIGMA2_X,         # variance of log-odds per second
@@ -303,7 +303,7 @@ class ASGMStrategy(Strategy):
         adverse_keep_reducing: bool = False, # don't charge the side that reduces |q|
         greenup_seconds: float = 30.0,      # T_e: stop quoting and green up this many seconds before the off
         greenup_slippage_ticks: int = 3,    # how many ticks through the best price a green-up may take
-        greenup_min_units: float = 0.5,     # ignore |q| below this when greening up
+        greenup_min_units: float = 1.0,     # leave |q| below this to settle (tuned on 1-14 Feb, gamma_grid.ipynb)
         min_odds: float = 1.2,              # only quote runners whose fair odds are in this range
         max_odds: float = 6.0,
         dime: bool = False,                 # inside the spread, go at most one tick in front of the best

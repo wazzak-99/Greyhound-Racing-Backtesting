@@ -1,0 +1,229 @@
+Strategy  ASGMStrategy from strategies/_final-strategy.py  {'gamma': 0.5, 'greenup_min_units': 1}
+Data      Feb/1 Feb/2 Feb/3 Feb/4 Feb/5 Feb/6 Feb/7 Feb/8 Feb/9 Feb/10 Feb/11 Feb/12 Feb/13 Feb/14   commission 4%   latency 0.2s   window 400s before the off
+Parallel mode: 24 workers across 1738 files
+[    10/1738] files processed
+[    20/1738] files processed
+[    30/1738] files processed
+[    40/1738] files processed
+[    50/1738] files processed
+[    60/1738] files processed
+[    70/1738] files processed
+[    80/1738] files processed
+[    90/1738] files processed
+[   100/1738] files processed
+[   110/1738] files processed
+[   120/1738] files processed
+[   130/1738] files processed
+[   140/1738] files processed
+[   150/1738] files processed
+[   160/1738] files processed
+[   170/1738] files processed
+[   180/1738] files processed
+[   190/1738] files processed
+[   200/1738] files processed
+[   210/1738] files processed
+[   220/1738] files processed
+[   230/1738] files processed
+[   240/1738] files processed
+[   250/1738] files processed
+[   260/1738] files processed
+[   270/1738] files processed
+[   280/1738] files processed
+[   290/1738] files processed
+[   300/1738] files processed
+[   310/1738] files processed
+[   320/1738] files processed
+[   330/1738] files processed
+[   340/1738] files processed
+[   350/1738] files processed
+[   360/1738] files processed
+[   370/1738] files processed
+[   380/1738] files processed
+[   390/1738] files processed
+[   400/1738] files processed
+[   410/1738] files processed
+[   420/1738] files processed
+[   430/1738] files processed
+[   440/1738] files processed
+[   450/1738] files processed
+[   460/1738] files processed
+[   470/1738] files processed
+[   480/1738] files processed
+[   490/1738] files processed
+[   500/1738] files processed
+[   510/1738] files processed
+[   520/1738] files processed
+[   530/1738] files processed
+[   540/1738] files processed
+[   550/1738] files processed
+[   560/1738] files processed
+[   570/1738] files processed
+[   580/1738] files processed
+[   590/1738] files processed
+[   600/1738] files processed
+[   610/1738] files processed
+[   620/1738] files processed
+[   630/1738] files processed
+[   640/1738] files processed
+[   650/1738] files processed
+[   660/1738] files processed
+[   670/1738] files processed
+[   680/1738] files processed
+[   690/1738] files processed
+[   700/1738] files processed
+[   710/1738] files processed
+[   720/1738] files processed
+[   730/1738] files processed
+[   740/1738] files processed
+[   750/1738] files processed
+[   760/1738] files processed
+[   770/1738] files processed
+[   780/1738] files processed
+[   790/1738] files processed
+[   800/1738] files processed
+[   810/1738] files processed
+[   820/1738] files processed
+[   830/1738] files processed
+[   840/1738] files processed
+[   850/1738] files processed
+[   860/1738] files processed
+[   870/1738] files processed
+[   880/1738] files processed
+[   890/1738] files processed
+[   900/1738] files processed
+[   910/1738] files processed
+[   920/1738] files processed
+[   930/1738] files processed
+[   940/1738] files processed
+[   950/1738] files processed
+[   960/1738] files processed
+[   970/1738] files processed
+[   980/1738] files processed
+[   990/1738] files processed
+[  1000/1738] files processed
+[  1010/1738] files processed
+[  1020/1738] files processed
+[  1030/1738] files processed
+[  1040/1738] files processed
+[  1050/1738] files processed
+[  1060/1738] files processed
+[  1070/1738] files processed
+[  1080/1738] files processed
+[  1090/1738] files processed
+[  1100/1738] files processed
+[  1110/1738] files processed
+[  1120/1738] files processed
+[  1130/1738] files processed
+[  1140/1738] files processed
+[  1150/1738] files processed
+[  1160/1738] files processed
+[  1170/1738] files processed
+[  1180/1738] files processed
+[  1190/1738] files processed
+[  1200/1738] files processed
+[  1210/1738] files processed
+[  1220/1738] files processed
+[  1230/1738] files processed
+[  1240/1738] files processed
+[  1250/1738] files processed
+[  1260/1738] files processed
+[  1270/1738] files processed
+[  1280/1738] files processed
+[  1290/1738] files processed
+[  1300/1738] files processed
+[  1310/1738] files processed
+[  1320/1738] files processed
+[  1330/1738] files processed
+[  1340/1738] files processed
+[  1350/1738] files processed
+[  1360/1738] files processed
+[  1370/1738] files processed
+[  1380/1738] files processed
+[  1390/1738] files processed
+[  1400/1738] files processed
+[  1410/1738] files processed
+[  1420/1738] files processed
+[  1430/1738] files processed
+[  1440/1738] files processed
+[  1450/1738] files processed
+[  1460/1738] files processed
+[  1470/1738] files processed
+[  1480/1738] files processed
+[  1490/1738] files processed
+[  1500/1738] files processed
+[  1510/1738] files processed
+[  1520/1738] files processed
+[  1530/1738] files processed
+[  1540/1738] files processed
+[  1550/1738] files processed
+[  1560/1738] files processed
+[  1570/1738] files processed
+[  1580/1738] files processed
+[  1590/1738] files processed
+[  1600/1738] files processed
+[  1610/1738] files processed
+[  1620/1738] files processed
+[  1630/1738] files processed
+[  1640/1738] files processed
+[  1650/1738] files processed
+[  1660/1738] files processed
+[  1670/1738] files processed
+[  1680/1738] files processed
+[  1690/1738] files processed
+[  1700/1738] files processed
+[  1710/1738] files processed
+[  1720/1738] files processed
+[  1730/1738] files processed
+[  1738/1738] files processed
+WARNING: No winner found for market 1.239005852! Skipping...
+WARNING: No winner found for market 1.239436515! Skipping...
+WARNING: No winner found for market 1.239436523! Skipping...
+WARNING: No winner found for market 1.239436541! Skipping...
+WARNING: No winner found for market 1.239152154! Skipping...
+WARNING: No winner found for market 1.239194299! Skipping...
+WARNING: No winner found for market 1.239005857! Skipping...
+WARNING: No winner found for market 1.239436535! Skipping...
+WARNING: No winner found for market 1.239564659! Skipping...
+WARNING: No winner found for market 1.239114020! Skipping...
+WARNING: No winner found for market 1.239564654! Skipping...
+WARNING: No winner found for market 1.239269410! Skipping...
+WARNING: No winner found for market 1.239152264! Skipping...
+WARNING: No winner found for market 1.239113975! Skipping...
+WARNING: No winner found for market 1.239436513! Skipping...
+WARNING: No winner found for market 1.239436519! Skipping...
+WARNING: No winner found for market 1.239436533! Skipping...
+WARNING: No winner found for market 1.239436543! Skipping...
+WARNING: No winner found for market 1.239269385! Skipping...
+WARNING: No winner found for market 1.239152250! Skipping...
+WARNING: No winner found for market 1.239152258! Skipping...
+WARNING: No winner found for market 1.239152260! Skipping...
+WARNING: No winner found for market 1.239152266! Skipping...
+WARNING: No winner found for market 1.239152149! Skipping...
+WARNING: No winner found for market 1.239436517! Skipping...
+WARNING: No winner found for market 1.239436521! Skipping...
+WARNING: No winner found for market 1.239436539! Skipping...
+WARNING: No winner found for market 1.239436545! Skipping...
+WARNING: No winner found for market 1.239005847! Skipping...
+WARNING: No winner found for market 1.239436547! Skipping...
+WARNING: No winner found for market 1.239114005! Skipping...
+WARNING: No winner found for market 1.239436525! Skipping...
+WARNING: No winner found for market 1.239436537! Skipping...
+
+================ SUMMARY ================
+markets traded      1331
+gross PnL           +118.78
+commission          11.91  (rate 4%)
+net PnL             +106.87
+mean / median       +0.0803 / +0.0864 per market
+std dev             0.5367 per market
+t-stat (mean = 0)   +5.46
+p-value (t-test)    5.75e-08
+Wilcoxon p          1.029e-16
+markets profitable  59%
+worst / best market -7.81 / +3.83
+max drawdown        8.83
+staked              19908.50   ROI +0.5368%
+fills               7812  {'quote': 5848, 'greenup': 1964}
+max |q|             49.99
+=========================================
+Saved bets, markets, fills, inventory, run_config and summary.txt to C:\Users\Lawrence\Desktop\Backtesting v2\Greyhound-Racing-Backtesting\research\results\hyperparameter_grid\check_gamma_0.5_greenup_1
